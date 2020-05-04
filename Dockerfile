@@ -8,6 +8,7 @@ RUN apk add pandoc --update-cache --repository http://dl-3.alpinelinux.org/alpin
 RUN apk add --update git gcc cmake libpng-dev graphviz wkhtmltopdf && rm -f /var/cache/apk/*
 RUN git clone --recursive https://github.com/kornelski/pngquant.git
 RUN cd pngquant && ./configure && make install
+RUN apk add --no-cache texlive-xetex librsvg
 
 RUN gem install docsplit --no-rdoc --no-ri 
 ENV TZ=Europe/Berlin
