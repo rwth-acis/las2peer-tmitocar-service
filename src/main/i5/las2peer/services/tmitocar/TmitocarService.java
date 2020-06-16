@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.logging.Level;
 
 import javax.imageio.ImageIO;
 import javax.ws.rs.Consumes;
@@ -20,9 +21,14 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.java_websocket.util.Base64;
+
 import i5.las2peer.api.Context;
 import i5.las2peer.api.ManualDeployment;
 import i5.las2peer.api.logging.MonitoringEvent;
+import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.restMapper.RESTService;
 import i5.las2peer.restMapper.annotations.ServicePath;
 import i5.las2peer.services.tmitocar.pojo.TmitocarText;
@@ -62,6 +68,7 @@ public class TmitocarService extends RESTService {
 	private String publicKey;
 	private String privateKey;
 	private static HashMap<String, Boolean> isActive = null;
+	private static final L2pLogger logger = L2pLogger.getInstance(TmitocarService.class.getName());
 
 	private final static String AUTH_FILE = "tmitocar/auth.json";
 
@@ -86,6 +93,7 @@ public class TmitocarService extends RESTService {
 				e.printStackTrace();
 			}
 		}
+		L2pLogger.setGlobalConsoleLevel(Level.WARNING);
 	}
 
 	/**
@@ -122,7 +130,7 @@ public class TmitocarService extends RESTService {
 						boolean b = f.getParentFile().mkdirs();
 						b = f.createNewFile();
 						FileWriter writer = new FileWriter(f);
-						writer.write(body.getText().toLowerCase());
+						writer.write(StringEscapeUtils.unescapeJson(body.getText()).toLowerCase());
 						writer.close();
 					} catch (IOException e) {
 						System.out.println("An error occurred: " + e.getMessage());
@@ -230,7 +238,7 @@ public class TmitocarService extends RESTService {
 		// TODO Handle pdfs
 		try {
 			System.out.println(isActive.get(user));
-			File pdf = new File("tmitocar/comparison_" + user + expert + "_vs_expert" + expert + ".pdf");
+			File pdf = new File("tmitocar/comparison_" + expert + "_vs_" + user + expert + ".pdf");
 			byte[] fileContent = Files.readAllBytes(pdf.toPath());
 			JSONObject j = new JSONObject();
 			j.put("user", user);
@@ -274,7 +282,7 @@ public class TmitocarService extends RESTService {
 	 * @return Returns an HTTP response with png content derived from the underlying tmitocar service.
 	 */
 	@POST
-	@Path("/{user}/{expert}")
+	@Path("/{user}/{expert}/{template}")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces("text/html")
 	@ApiResponses(
@@ -284,7 +292,8 @@ public class TmitocarService extends RESTService {
 	@ApiOperation(
 			value = "Analyze Text",
 			notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response compareText(@PathParam("user") String user, @PathParam("expert") String expert, TmitocarText body) {
+	public Response compareText(@PathParam("user") String user, @PathParam("expert") String expert,
+			@PathParam("template") String template, TmitocarText body) {
 		// TODO Handle pdfs
 		isActive.put(user, true);
 		JSONObject j = new JSONObject();
@@ -296,14 +305,29 @@ public class TmitocarService extends RESTService {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
+
+					String fileName = "text.txt";
 					System.out.println("Write File");
-					File f = new File("tmitocar/texts/" + user + "/text.txt");
+					String type = body.getType();
+
+					if (type.toLowerCase().equals("text/plain")) {
+						fileName = "text.txt";
+					} else if (type.toLowerCase().equals("application/pdf")) {
+						fileName = "text.pdf";
+					}
+					File f = new File("tmitocar/texts/" + user + "/" + fileName);
 					try {
 						boolean b = f.getParentFile().mkdirs();
 						b = f.createNewFile();
-						FileWriter writer = new FileWriter(f);
-						writer.write(body.getText().toLowerCase());
-						writer.close();
+						if (type.toLowerCase().equals("text/plain")) {
+							FileWriter writer = new FileWriter(f);
+							writer.write(body.getText().toLowerCase());
+							writer.close();
+						} else if (type.toLowerCase().equals("application/pdf")) {
+							byte[] decodedBytes = Base64.decode(body.getText());
+							FileUtils.writeByteArrayToFile(f, decodedBytes);
+						}
+
 					} catch (IOException e) {
 						System.out.println("An error occurred: " + e.getMessage());
 						e.printStackTrace();
@@ -316,7 +340,7 @@ public class TmitocarService extends RESTService {
 						// Store usertext cwith label
 						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o json -s -S
 						ProcessBuilder pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-								"texts/" + user + "/text.txt", "-l", user + expert, "-o", "json", "-S");
+								"texts/" + user + "/" + fileName, "-l", user + expert, "-o", "json", "-S");
 						pb.inheritIO();
 						pb.directory(new File("tmitocar"));
 						Process process = pb.start();
@@ -331,8 +355,8 @@ public class TmitocarService extends RESTService {
 						System.out.println("compare with expert");
 						// compare with expert text
 						// bash tmitocar.sh -l usertext -c expert1 -T -s -o json
-						ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", user + expert, "-c",
-								"expert" + expert, "-o", "json", "-T");
+						ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", expert, "-c",
+								user + expert, "-o", "json", "-T");
 						pb2.inheritIO();
 						pb2.directory(new File("tmitocar"));
 						Process process2 = pb2.start();
@@ -348,7 +372,8 @@ public class TmitocarService extends RESTService {
 						// generate feedback
 						// bash feeback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
 						ProcessBuilder pb3 = new ProcessBuilder("bash", "feeback.sh", "-s", "-o", "pdf", "-i",
-								"comparison_" + user + expert + "_vs_expert" + expert + ".json");
+								"comparison_" + expert + "_vs_" + user + expert + ".json", "-t",
+								"templates/" + template, "-S", body.getTopic());
 						pb3.inheritIO();
 						pb3.directory(new File("tmitocar"));
 						Process process3 = pb3.start();

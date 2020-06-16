@@ -3,16 +3,16 @@ FROM openjdk:8-jdk
 ENV LAS2PEER_PORT=9011
 
 # tmitocar dependencies (jq, ruby, coreutils)
-RUN apt-get update && apt-get install -y default-mysql-client ant jq build-essential libffi-dev ruby ruby-bundler dos2unix coreutils curl tzdata git gcc cmake libpng-dev graphviz wkhtmltopdf pandoc rsync
+RUN apt-get update && apt-get install -y default-mysql-client ant jq build-essential libffi-dev ruby ruby-bundler dos2unix coreutils curl tzdata git gcc cmake libpng-dev graphviz wkhtmltopdf pandoc rsync poppler-utils
 
 RUN git clone --recursive https://github.com/kornelski/pngquant.git
 RUN cd pngquant && ./configure && make install
 RUN apt-get update && apt-get install -y texlive-xetex
-
-RUN gem install docsplit --no-rdoc --no-ri 
+RUN gem install docsplit 
 ENV TZ=Europe/Berlin
 RUN apt-get install -y file
 
+RUN apt-get install -y vim
 
 COPY . /src
 WORKDIR /src
