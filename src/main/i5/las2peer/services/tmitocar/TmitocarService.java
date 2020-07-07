@@ -329,7 +329,7 @@ public class TmitocarService extends RESTService {
 						b = f.createNewFile();
 						if (type.toLowerCase().equals("text/plain")) {
 							FileWriter writer = new FileWriter(f);
-							writer.write(body.getText().toLowerCase());
+							writer.write(StringEscapeUtils.unescapeJson(body.getText()).toLowerCase());
 							writer.close();
 						} else if (type.toLowerCase().equals("application/pdf")) {
 							byte[] decodedBytes = Base64.decode(body.getText());
