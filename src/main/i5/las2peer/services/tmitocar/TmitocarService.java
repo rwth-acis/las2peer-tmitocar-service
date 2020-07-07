@@ -119,6 +119,7 @@ public class TmitocarService extends RESTService {
 		JSONObject j = new JSONObject();
 		j.put("user", user);
 		j.put("text", body.getText().length());
+		String wordspec = body.getWordSpec();
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_81, j.toJSONString());
 		// TODO Handle pdfs
 		try {
@@ -138,8 +139,14 @@ public class TmitocarService extends RESTService {
 						isActive.put(user, false);
 					}
 					try {
-						ProcessBuilder pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-								"texts/" + user + "/text.txt");
+						ProcessBuilder pb;
+						if (wordspec != null && wordspec.length() > 2) {
+							System.out.println("Using wordspec: " + wordspec);
+							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/text.txt",
+									"-w", wordspec);
+						} else {
+							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/text.txt");
+						}
 						pb.inheritIO();
 						pb.directory(new File("tmitocar"));
 						Process process = pb.start();
@@ -309,6 +316,7 @@ public class TmitocarService extends RESTService {
 					String fileName = "text.txt";
 					System.out.println("Write File");
 					String type = body.getType();
+					String wordspec = body.getWordSpec();
 
 					if (type.toLowerCase().equals("text/plain")) {
 						fileName = "text.txt";
@@ -339,8 +347,16 @@ public class TmitocarService extends RESTService {
 					try {
 						// Store usertext cwith label
 						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o json -s -S
-						ProcessBuilder pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-								"texts/" + user + "/" + fileName, "-l", user + expert, "-o", "json", "-S");
+						ProcessBuilder pb;
+						if (wordspec != null && wordspec.length() > 2) {
+							System.out.println("Using wordspec: " + wordspec);
+							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
+									"-l", user + expert, "-o", "json", "-S", "-w", wordspec);
+						} else {
+							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
+									"-l", user + expert, "-o", "json", "-S");
+						}
+
 						pb.inheritIO();
 						pb.directory(new File("tmitocar"));
 						Process process = pb.start();

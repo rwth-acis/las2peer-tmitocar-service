@@ -4,6 +4,7 @@ public class TmitocarText {
 	private String text;
 	private String type;
 	private String topic;
+	private String wordSpec;
 
 	public String getText() {
 		return text;
@@ -27,5 +28,13 @@ public class TmitocarText {
 
 	public void setTopic(String topic) {
 		this.topic = topic;
+	}
+
+	public String getWordSpec() {
+		return wordSpec;
+	}
+
+	public void setWordSpec(String wordSpec) {
+		this.wordSpec = wordSpec;
 	}
 }
