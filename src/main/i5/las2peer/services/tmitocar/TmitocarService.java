@@ -329,7 +329,7 @@ public class TmitocarService extends RESTService {
 						b = f.createNewFile();
 						if (type.toLowerCase().equals("text/plain")) {
 							FileWriter writer = new FileWriter(f);
-							writer.write(StringEscapeUtils.unescapeJson(body.getText()).toLowerCase());
+							writer.write(body.getText().toLowerCase());
 							writer.close();
 						} else if (type.toLowerCase().equals("application/pdf")) {
 							byte[] decodedBytes = Base64.decode(body.getText());
@@ -386,8 +386,8 @@ public class TmitocarService extends RESTService {
 
 						System.out.println("gen feedback");
 						// generate feedback
-						// bash feeback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
-						ProcessBuilder pb3 = new ProcessBuilder("bash", "feeback.sh", "-s", "-o", "pdf", "-i",
+						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
+						ProcessBuilder pb3 = new ProcessBuilder("bash", "feedback.sh", "-s", "-o", "pdf", "-i",
 								"comparison_" + expert + "_vs_" + user + expert + ".json", "-t",
 								"templates/" + template, "-S", body.getTopic());
 						pb3.inheritIO();
