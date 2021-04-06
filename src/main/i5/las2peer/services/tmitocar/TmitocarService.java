@@ -452,6 +452,7 @@ public class TmitocarService extends RESTService {
 			}
 		}
 		String msg = "";
+		int credits = 0;
 		for (int i = 0; i < 12; i++) {
 			String number;
 			if (i < 9) {
@@ -459,10 +460,13 @@ public class TmitocarService extends RESTService {
 			} else {
 				number = String.valueOf(i + 1);
 			}
+			if (assignments[i] > 0) {
+				credits++;
+			}
 			msg += "Schreibaufgabe " + number + ": " + String.valueOf(assignments[i]) + "\n";
 		}
 		// How are the credits calculated?
-		msg += "Das heiﬂt, du hast bisher *" + 8 + "* Leistunsprozente gesammelt. ";
+		msg += "Das heiﬂt, du hast bisher *" + credits + "* Leistunsprozente gesammelt. ";
 		System.out.println(msg);
 		jsonBody = new JSONObject();
 		jsonBody.put("text", msg);
