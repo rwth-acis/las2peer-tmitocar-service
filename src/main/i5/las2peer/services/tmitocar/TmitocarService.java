@@ -7,9 +7,12 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigInteger;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.logging.Level;
 
@@ -65,6 +68,7 @@ public class TmitocarService extends RESTService {
 	private String lrsURL;
 	private String lrsAuthToken;
 	private static HashMap<String, Boolean> isActive = null;
+	private static HashMap<String, String> expertLabel = null;
 	private static final L2pLogger logger = L2pLogger.getInstance(TmitocarService.class.getName());
 
 	private final static String AUTH_FILE = "tmitocar/auth.json";
@@ -74,6 +78,9 @@ public class TmitocarService extends RESTService {
 
 		if (isActive == null) {
 			isActive = new HashMap<String, Boolean>();
+		}
+		if (expertLabel == null) {
+			expertLabel = new HashMap<String, String>();
 		}
 
 		File f = new File(AUTH_FILE);
@@ -264,6 +271,47 @@ public class TmitocarService extends RESTService {
 	}
 
 	/**
+	 * Analyze text that was send from bot, updated version to be matchable in bot
+	 * action
+	 * 
+	 * @param user Name of the current user.
+	 * @param body Text to be analyzed
+	 * @return Returns an HTTP response with png content derived from the underlying
+	 *         tmitocar service.
+	 */
+	@POST
+	@Path("/getFeedback")
+	@Consumes(MediaType.TEXT_PLAIN)
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
+	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
+	public Response getFeedback(String body) throws ParseException {
+		System.out.println(body);
+		JSONObject jsonBody = new JSONObject();
+		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+		jsonBody = (JSONObject) p.parse(body);
+		boolean isActive = true;
+		while (isActive) {
+			Response result = getTmitocarStatus(jsonBody.getAsString("channel"));
+			isActive = result.toString().toLowerCase().contains("true");
+			// isActive = Boolean.parseBoolean(result.getResponse());
+			System.out.println(isActive);
+			try {
+				Thread.sleep(1000);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		byte[] pdfByte = getPDF(jsonBody.getAsString("channel"), expertLabel.get(jsonBody.getAsString("channel")))
+				.getEntity().toString().getBytes();
+		String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
+		jsonBody = new JSONObject();
+		jsonBody.put("text", "");
+		return Response.ok().entity(jsonBody).build();
+
+	}
+
+	/**
 	 * Analyze text
 	 * 
 	 * @param user Name of the current user.
@@ -281,6 +329,7 @@ public class TmitocarService extends RESTService {
 			@PathParam("template") String template, TmitocarText body) {
 		// TODO Handle pdfs
 		isActive.put(user, true);
+		expertLabel.put(user, expert);
 		JSONObject j = new JSONObject();
 		j.put("user", user);
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
@@ -391,8 +440,43 @@ public class TmitocarService extends RESTService {
 		} catch (Exception e) {
 			e.printStackTrace();
 			isActive.put(user, false);
+			expertLabel.remove(user);
 			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
 		}
+	}
+
+	/**
+	 * Analyze text that was send from bot, updated version to be matchable in bot
+	 * action
+	 * 
+	 * @param user Name of the current user.
+	 * @param body Text to be analyzed
+	 * @return Returns an HTTP response with png content derived from the underlying
+	 *         tmitocar service.
+	 */
+	@POST
+	@Path("/analyzeText")
+	@Consumes(MediaType.TEXT_PLAIN)
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
+	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
+	public Response compareTextFromBot(String body) throws ParseException {
+		System.out.println(body);
+		JSONObject jsonBody = new JSONObject();
+		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+		jsonBody = (JSONObject) p.parse(body);
+		int taskNumber = Integer.parseInt(jsonBody.getAsString("fileName").replaceAll("[^0-9]", ""));
+		String expertLabel = "t" + String.valueOf(taskNumber);
+		TmitocarText tmitoBody = new TmitocarText();
+		tmitoBody.setTopic(expertLabel);
+		tmitoBody.setType(jsonBody.getAsString("fileType"));
+		tmitoBody.setWordSpec("1200");
+		tmitoBody.setText(jsonBody.getAsString("fileBody"));
+		compareText(jsonBody.getAsString("channel"), expertLabel, "template_ul.md", tmitoBody);
+		jsonBody = new JSONObject();
+		jsonBody.put("text", "");
+		return Response.ok().entity(jsonBody).build();
+
 	}
 
 	@POST
@@ -440,7 +524,7 @@ public class TmitocarService extends RESTService {
 			JSONObject jsonIndex = (JSONObject) index;
 			JSONObject actor = (JSONObject) jsonIndex.get("actor");
 			JSONObject account = (JSONObject) actor.get("account");
-			if (account.getAsString("name").equals(user) || account.getAsString("name").equals(dummyUser)
+			if (account.getAsString("name").equals(user)
 					|| account.getAsString("name").equals(encryptThisString(user))) {
 				JSONObject object = (JSONObject) jsonIndex.get("object");
 				JSONObject definition = (JSONObject) object.get("definition");
@@ -466,10 +550,41 @@ public class TmitocarService extends RESTService {
 			msg += "Schreibaufgabe " + number + ": " + String.valueOf(assignments[i]) + "\n";
 		}
 		// How are the credits calculated?
-		msg += "Das heiﬂt, du hast bisher *" + credits + "* Leistunsprozente gesammelt. ";
+		msg += "Das hei\u00DFt, du hast bisher *" + credits + "* Leistunsprozente gesammelt. ";
 		System.out.println(msg);
 		jsonBody = new JSONObject();
 		jsonBody.put("text", msg);
 		return Response.ok().entity(jsonBody).build();
+	}
+
+	public static String encryptThisString(String input) {
+		try {
+			// getInstance() method is called with algorithm SHA-384
+			MessageDigest md = MessageDigest.getInstance("SHA-384");
+
+			// digest() method is called
+			// to calculate message digest of the input string
+			// returned as array of byte
+			byte[] messageDigest = md.digest(input.getBytes());
+
+			// Convert byte array into signum representation
+			BigInteger no = new BigInteger(1, messageDigest);
+
+			// Convert message digest into hex value
+			String hashtext = no.toString(16);
+
+			// Add preceding 0s to make it 32 bit
+			while (hashtext.length() < 32) {
+				hashtext = "0" + hashtext;
+			}
+
+			// return the HashText
+			return hashtext;
+		}
+
+		// For specifying wrong message digest algorithms
+		catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }
