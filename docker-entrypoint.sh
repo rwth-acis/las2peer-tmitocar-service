@@ -45,6 +45,9 @@ function set_in_service_config {
 
 set_in_service_config privateKey ${PRIVATE_KEY}
 set_in_service_config publicKey ${PUBLIC_KEY}
+set_in_service_config lrsURL ${LRS_URL}
+set_in_service_config lrsAuthToken ${LRS_AUTH_TOKEN}
+
 
 # prevent glob expansion in lib/*
 set -f

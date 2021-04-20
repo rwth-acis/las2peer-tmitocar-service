@@ -1,5 +1,5 @@
-FROM openjdk:14-jdk
-
+FROM adoptopenjdk/openjdk14:x86_64-debian-jdk-14.0.2_12
+#FROM openjdk:8-jdk
 ENV LAS2PEER_PORT=9011
 
 # tmitocar dependencies (jq, ruby, coreutils)
@@ -22,7 +22,7 @@ WORKDIR /src
 #RUN cp -R pandoc-2.5/bin/* /usr/bin/
 # && tar -zxf pandoc-2.9.2.1-linux-amd64.tar.gz 
 
-RUN git clone https://gitlab.com/Tech4Comp/tmitocar-tools.git tmitocar
+RUN git clone https://gitlab.com/Tech4Comp/tmitocar-tools.git/ tmitocar
 
 RUN chmod -R 777 tmitocar
 
