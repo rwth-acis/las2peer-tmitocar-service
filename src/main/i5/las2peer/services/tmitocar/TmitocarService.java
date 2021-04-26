@@ -9,15 +9,17 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.math.BigInteger;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.logging.Level;
-
+import org.apache.commons.io.IOUtils;
 import javax.imageio.ImageIO;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -57,6 +59,8 @@ import net.minidev.json.parser.ParseException;
 import org.apache.pdfbox.*;
 import org.apache.pdfbox.cos.COSDocument;
 import org.apache.pdfbox.pdfparser.PDFParser;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 
 /**
  * las2peer-tmitocar-Service
@@ -384,12 +388,19 @@ public class TmitocarService extends RESTService {
 							 * writer.write(body.getText().toLowerCase()); writer.close();
 							 */
 							byte[] decodedBytes = Base64.decode(body.getText());
+							System.out.println(decodedBytes);
 							FileUtils.writeByteArrayToFile(f, decodedBytes);
 							textContent = readTxtFile("tmitocar/texts/" + user + "/" + fileName);
 						} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
 							byte[] decodedBytes = Base64.decode(body.getText());
+							System.out.println(decodedBytes);
 							FileUtils.writeByteArrayToFile(f, decodedBytes);
 							textContent = readPDFFile("tmitocar/texts/" + user + "/" + fileName);
+						}
+						// spaces are not counted
+						if (textContent.replaceAll("\\s", "").length() < 350) {
+							userError.put(user, false);
+							throw new IOException();
 						}
 						userTexts.put(user, textContent);
 
@@ -522,13 +533,17 @@ public class TmitocarService extends RESTService {
 		}
 		try {
 			JSONObject xAPI = createXAPIStatement(jsonBody.getAsString("email"), expertLabel,
-					jsonBody.getAsString("channel"));
+					userTexts.get(jsonBody.getAsString("channel")));
+			if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
+				sendXAPIStatement(xAPI);
+			}
 			Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
 					xAPI.toString() + "*" + jsonBody.getAsString("email"));
 		} catch (ParseException e) {
 			e.printStackTrace();
 			System.out.println("could not create API statement");
 		}
+
 		byte[] pdfByte = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
 				+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
 		// byte[] pdfByte = getPDF(jsonBody.getAsString("channel"),
@@ -538,20 +553,23 @@ public class TmitocarService extends RESTService {
 		userTexts.remove(jsonBody.getAsString("channel"));
 		String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 		String errorMessage = "";
-		if (!userError.get(jsonBody.getAsString("channel"))) {
-			if (jsonBody.get("errorMessage") != null) {
-				errorMessage = jsonBody.get("errorMessage");
+		if (userError.get(jsonBody.getAsString("channel")) != null && !userError.get(jsonBody.getAsString("channel"))) {
+			if (jsonBody.get("submissionFailed") != null) {
+				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionFailed"));
 			} else {
 				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
 			}
 
+		} else {
+			if (jsonBody.get("submissionSucceeded") != null)
+				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionSucceeded"));
 		}
 		jsonBody = new JSONObject();
 		// jsonBody.put("text", "Hier deine Datei :D");
 		jsonBody.put("fileBody", fileBody);
 		jsonBody.put("fileType", "pdf");
 		jsonBody.put("fileName", "Feedback");
-		sonBody.put("text", errorMessage);
+		jsonBody.put("text", errorMessage);
 		return Response.ok().entity(jsonBody).build();
 	}
 
@@ -607,7 +625,7 @@ public class TmitocarService extends RESTService {
 				JSONObject name = (JSONObject) definition.get("name");
 				String assignmentName = name.getAsString("en-US");
 				int assignmentNumber = Integer.valueOf(assignmentName.split("t")[1]);
-				assignments[assignmentNumber]++;
+				assignments[assignmentNumber - 1]++;
 				System.out.println("Extracted actor is " + name.getAsString("en-US"));
 			}
 		}
@@ -626,7 +644,7 @@ public class TmitocarService extends RESTService {
 			msg += "Schreibaufgabe " + number + ": " + String.valueOf(assignments[i]) + "\n";
 		}
 		// How are the credits calculated?
-		msg += "Das hei\u00DFt, du hast bisher *" + credits + "* Leistunsprozente gesammelt. ";
+		msg += "Das hei\u00DFt, du hast bisher *" + credits * 2 + "* Leistunsprozente gesammelt. ";
 		System.out.println(msg);
 		jsonBody = new JSONObject();
 		jsonBody.put("text", msg);
@@ -664,22 +682,16 @@ public class TmitocarService extends RESTService {
 		}
 	}
 
-	public String readTxtFile(String fileName) throws IOException {
-		BufferedReader br = new BufferedReader(new FileReader(fileName));
+	public static String readTxtFile(String fileName) {
+		String text = "";
 		try {
-			StringBuilder sb = new StringBuilder();
-			String line = br.readLine();
-
-			while (line != null) {
-				sb.append(line);
-				sb.append("\n");
-				line = br.readLine();
-			}
-			br.close();
-			return sb.toString();
-		} finally {
-			br.close();
+			text = new String(Files.readAllBytes(Paths.get(fileName)));
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
+
+		System.out.println("text " + text);
+		return text;
 	}
 
 	public String readPDFFile(String fileName) {
@@ -717,8 +729,10 @@ public class TmitocarService extends RESTService {
 		JSONObject actor = new JSONObject();
 		actor.put("objectType", "Agent");
 		JSONObject account = new JSONObject();
+
 		account.put("name", encryptThisString(userMail));
 		account.put("homePage", "https://chat.tech4comp.dbis.rwth-aachen.de");
+		actor.put("account", account);
 		JSONObject verb = (JSONObject) p
 				.parse(new String("{'display':{'en-US':'sent_file'},'id':'https://tech4comp.de/xapi/verb/sent_file'}"));
 		JSONObject object = (JSONObject) p
@@ -733,12 +747,64 @@ public class TmitocarService extends RESTService {
 		xAPI.put("authority", p.parse(
 				new String("{'objectType': 'Agent','name': 'New Client', 'mbox': 'mailto:hello@learninglocker.net'}")));
 		xAPI.put("context", context); //
-		xAPI.put("timestamp", java.time.LocalDateTime.now());
+		// xAPI.put("timestamp", java.time.LocalDateTime.now());
 		xAPI.put("actor", actor);
 		xAPI.put("object", object);
 		xAPI.put("verb", verb);
 		System.out.println(xAPI);
 		return xAPI;
+	}
+
+	// wrote method in case I dont manage to fix learning locker problem...
+	public void sendXAPIStatement(JSONObject xAPI) {
+		// Copy pasted from LL service
+		// POST statements
+		try {
+			URL url = new URL(lrsURL + "/data/xAPI/statements");
+			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+			conn.setDoOutput(true);
+			conn.setDoInput(true);
+			conn.setRequestMethod("POST");
+			conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+			conn.setRequestProperty("X-Experience-API-Version", "1.0.3");
+			conn.setRequestProperty("Authorization", "Basic " + lrsAuthToken);
+			conn.setRequestProperty("Cache-Control", "no-cache");
+			conn.setUseCaches(false);
+
+			OutputStream os = conn.getOutputStream();
+			os.write(xAPI.toString().getBytes("utf-8"));
+			os.flush();
+
+			BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+			String line = "";
+			StringBuilder response = new StringBuilder();
+
+			while ((line = reader.readLine()) != null) {
+				response.append(line);
+			}
+			logger.info(response.toString());
+
+			conn.disconnect();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	private static String[][] UMLAUT_REPLACEMENTS = { { new String("Ä"), "Ae" }, { new String("Ü"), "Ue" },
+			{ new String("Ö"), "Oe" }, { new String("ä"), "ae" }, { new String("ü"), "ue" }, { new String("ö"), "oe" },
+			{ new String("ß"), "ss" } };
+
+	public static String replaceUmlaute(String orig) {
+		String result = orig;
+
+		for (int i = 0; i < UMLAUT_REPLACEMENTS.length; i++) {
+			result = result.replace(UMLAUT_REPLACEMENTS[i][0], UMLAUT_REPLACEMENTS[i][1]);
+		}
+
+		return result;
 	}
 
 }
