@@ -669,8 +669,9 @@ public class TmitocarService extends RESTService {
 					byte[] pdfByteAPI = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
 							+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
 					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
-					JSONObject xAPI = createXAPIStatement2(jsonBody.getAsString("email"), expertLabel,
-							userTexts.get(jsonBody.getAsString("channel")), fileBodyAPI);
+					JSONObject xAPI = createXAPIStatement2(jsonBody.getAsString("email"),
+							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
+							fileBodyAPI);
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
 						sendXAPIStatement(xAPI);
 						System.out.println("xAPI statement created");
@@ -739,9 +740,14 @@ public class TmitocarService extends RESTService {
 		JSONObject jsonBody = new JSONObject();
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
+		String user = jsonBody.getAsString("email");
+		String hashUser = encryptThisString(user);
 		// Copy pasted from LL service
 		// Fetch ALL statements
-		URL url = new URL(lrsURL + "/data/xAPI/statements");
+		JSONObject acc = (JSONObject) p.parse(new String("{'account': { 'name': '" + hashUser
+				+ "', 'homePage': 'https://chat.tech4comp.dbis.rwth-aachen.de'}}"));
+		URL url = new URL(lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
+
 		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 		conn.setRequestMethod("GET");
 		conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
@@ -749,9 +755,7 @@ public class TmitocarService extends RESTService {
 		conn.setRequestProperty("Authorization", "Basic " + lrsAuthToken);
 		conn.setRequestProperty("Cache-Control", "no-cache");
 		conn.setUseCaches(false);
-
 		BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-
 		String inputLine;
 		StringBuffer response = new StringBuffer();
 		while ((inputLine = in.readLine()) != null) {
@@ -759,12 +763,9 @@ public class TmitocarService extends RESTService {
 		}
 		in.close();
 		conn.disconnect();
-
-		String user = jsonBody.getAsString("email");
 		jsonBody = (JSONObject) p.parse(response.toString());
 
 		JSONArray statements = (JSONArray) jsonBody.get("statements");
-
 		// Check statements with matching actor
 		// 12 Values as 12 assignments right?
 		int[] assignments = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -778,8 +779,12 @@ public class TmitocarService extends RESTService {
 				JSONObject definition = (JSONObject) object.get("definition");
 				JSONObject name = (JSONObject) definition.get("name");
 				String assignmentName = name.getAsString("en-US");
-				int assignmentNumber = Integer.valueOf(assignmentName.split("t")[1]);
-				assignments[assignmentNumber - 1]++;
+				try {
+					int assignmentNumber = Integer.valueOf(assignmentName.split("t")[1]);
+					assignments[assignmentNumber - 1]++;
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 				System.out.println("Extracted actor is " + name.getAsString("en-US"));
 			}
 		}
@@ -803,6 +808,119 @@ public class TmitocarService extends RESTService {
 		jsonBody = new JSONObject();
 		jsonBody.put("text", msg);
 		return Response.ok().entity(jsonBody).build();
+	}
+
+	@POST
+	@Path("/compareUserTexts")
+	@Consumes(MediaType.TEXT_PLAIN)
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
+	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
+	public Response compareUserTexts(String body) throws ParseException, IOException {
+		System.out.println(body);
+		JSONObject jsonBody = new JSONObject();
+		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+		jsonBody = (JSONObject) p.parse(body);
+		String errorMessage = "";
+		try {
+			errorMessage = jsonBody.getAsString("submissionFailed");
+		} catch (NullPointerException e) {
+			errorMessage = "Fehler";
+		}
+
+		System.out.println(jsonBody.getAsString("fileName"));
+		// check if name has correct form
+		if (!jsonBody.getAsString("fileName").split("\\.")[0].matches("\\w{2}\\d{4}\\w{2}")) {
+			jsonBody = new JSONObject();
+			jsonBody.put("text", errorMessage);
+			return Response.ok().entity(jsonBody).build();
+		}
+
+		TmitocarText tmitoBody = new TmitocarText();
+		tmitoBody.setTopic("SelbstVergleich");
+		tmitoBody.setType(jsonBody.getAsString("fileType"));
+		tmitoBody.setWordSpec("1200");
+		tmitoBody.setText(jsonBody.getAsString("fileBody"));
+		compareOwnTexts(jsonBody.getAsString("channel"), "SelbstVergleich", "template_ul_Q1_2021.md", tmitoBody);
+		boolean isActive = true;
+		while (isActive) {
+			isActive = this.isActive.get(jsonBody.getAsString("channel"));
+			// isActive = Boolean.parseBoolean(result.getResponse());
+			System.out.println(isActive);
+			try {
+				Thread.sleep(1000);
+			} catch (Exception e) {
+				jsonBody.put("text", "Exception ist passiert " + e.toString());
+				e.printStackTrace();
+			}
+		}
+		System.out.println("try creating xapi statement");
+		if (userError.get(jsonBody.getAsString("channel")) == null) {
+			if (userTexts.get(jsonBody.getAsString("channel")).length() < 20) {
+				userError.put(jsonBody.getAsString("channel"), false);
+			} else {
+				try {
+					System.out.println("try creating xapi statement");
+					byte[] pdfByteAPI = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
+							+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
+					JSONObject xAPI = createXAPIStatement2(jsonBody.getAsString("email"),
+							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
+							fileBodyAPI);
+					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
+						sendXAPIStatement(xAPI);
+						System.out.println("xAPI statement created");
+					}
+					// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
+					// xAPI.toString() + "*" + jsonBody.getAsString("email"));
+				} catch (ParseException e) {
+					e.printStackTrace();
+					System.out.println("could not create API statement");
+				}
+			}
+		}
+		// byte[] pdfByte = getPDF(jsonBody.getAsString("channel"),
+		// this.expertLabel.get(jsonBody.getAsString("channel")))
+		// .getEntity().toString().getBytes();
+		// System.out.println(pdfByte);
+		JSONObject response = new JSONObject();
+		if (userTexts.get(jsonBody.getAsString("channel")) != null) {
+			System.out.println("converging pdf to base64");
+			try {
+				byte[] pdfByte = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
+						+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
+				response.put("fileBody", fileBody);
+				response.put("fileType", "pdf");
+				response.put("fileName", "Feedback");
+				userTexts.remove(jsonBody.getAsString("channel"));
+				System.out.println("finished conversion from pdf to base64");
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.println("failed conversion from pdf to base64");
+			}
+		}
+		errorMessage = "";
+		if ((userError.get(jsonBody.getAsString("channel")) != null && !userError.get(jsonBody.getAsString("channel")))
+				|| response.getAsString("fileBody") == null) {
+			if (jsonBody.get("submissionFailed") != null) {
+				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionFailed"));
+			} else {
+				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
+			}
+			System.out.println("Removing User from Errorlist1");
+			userError.remove(jsonBody.getAsString("channel"));
+		} else {
+			if (jsonBody.get("submissionSucceeded") != null)
+				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionSucceeded"));
+			System.out.println("Removing User from Errorlist2");
+			if (userError.get(jsonBody.getAsString("channel")) != null) {
+				userError.remove(jsonBody.getAsString("channel"));
+			}
+		}
+		System.out.println("response is " + response);
+		response.put("text", errorMessage);
+		return Response.ok().entity(response).build();
 	}
 
 	// is used to first store the text of a user who wishes to compare their own
@@ -834,6 +952,416 @@ public class TmitocarService extends RESTService {
 		jsonBody = new JSONObject();
 		jsonBody.put("text", message);
 		return Response.ok().entity(jsonBody).build();
+	}
+
+	public Response compareUserTexts(String user, String expert, String template, TmitocarText body) {
+		// TODO Handle pdfs
+		isActive.put(user, true);
+		expertLabel.put(user, expert);
+		JSONObject j = new JSONObject();
+		j.put("user", user);
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
+		System.out.println("Block user");
+
+		// TODO Handle pdfs
+		try {
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					String textContent = "";
+					// problem here with the file name no? I mean if two threads do this, we will
+					// have one file overwriting the other?
+					String fileName = "text.txt";
+					String compareFileName = "VergleichText.txt";
+					System.out.println("Write File");
+					String type = body.getType();
+					String wordspec = body.getWordSpec();
+
+					if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
+						fileName = "text.txt";
+					} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
+						fileName = "text.pdf";
+					}
+					File compare = new File("tmitocar/texts/" + user + "/" + compareFileName);
+					File f = new File("tmitocar/texts/" + user + "/" + fileName);
+					try {
+						boolean b = f.getParentFile().mkdirs();
+						b = f.createNewFile();
+
+						if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
+							/*
+							 * FileWriter writer = new FileWriter(f);
+							 * writer.write(body.getText().toLowerCase()); writer.close();
+							 */
+							byte[] decodedBytes = Base64.decode(body.getText());
+							System.out.println(decodedBytes);
+							FileUtils.writeByteArrayToFile(f, decodedBytes);
+							textContent = readTxtFile("tmitocar/texts/" + user + "/" + fileName);
+						} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
+							byte[] decodedBytes = Base64.decode(body.getText());
+							System.out.println(decodedBytes);
+							FileUtils.writeByteArrayToFile(f, decodedBytes);
+							textContent = readPDFFile("tmitocar/texts/" + user + "/" + fileName);
+						}
+						// spaces are not counted
+						if (textContent.replaceAll("\\s", "").length() < 350) {
+							userError.put(user, false);
+							System.out.println("not enough words");
+							throw new IOException();
+						}
+						userTexts.put(user, textContent);
+
+					} catch (IOException e) {
+						System.out.println("An error occurred: " + e.getMessage());
+						e.printStackTrace();
+
+						isActive.put(user, false);
+						Thread.currentThread().interrupt();
+					}
+
+					System.out.println("Upload text");
+					try {
+						// Store usertext cwith label
+						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o
+						// json -s -S
+						ProcessBuilder pb;
+						if (wordspec != null && wordspec.length() > 2) {
+							System.out.println("Using wordspec: " + wordspec);
+							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
+									"-l", user + expert, "-o", "json", "-S", "-w", wordspec);
+						} else {
+							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
+									"-l", user + expert, "-o", "json", "-S");
+						}
+
+						pb.inheritIO();
+						pb.directory(new File("tmitocar"));
+						Process process = pb.start();
+						try {
+							process.waitFor();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+							isActive.put(user, false);
+							userError.put(user, false);
+							Thread.currentThread().interrupt();
+						}
+
+						System.out.println("compare with expert");
+						// compare with expert text
+						// bash tmitocar.sh -l usertext -c expert1 -T -s -o json
+						ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", expert, "-c",
+								user + expert, "-o", "json", "-T");
+						pb2.inheritIO();
+						pb2.directory(new File("tmitocar"));
+						Process process2 = pb2.start();
+						try {
+							process2.waitFor();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+
+							userError.put(user, false);
+							isActive.put(user, false);
+							Thread.currentThread().interrupt();
+						}
+
+						System.out.println("gen feedback");
+
+						// generate feedback
+						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
+						ProcessBuilder pb3 = new ProcessBuilder("bash", "feedback.sh", "-s", "-o", "pdf", "-i",
+								"comparison_" + expert + "_vs_" + user + expert + ".json", "-t",
+								"templates/" + template, "-S", body.getTopic());
+						pb3.inheritIO();
+						pb3.directory(new File("tmitocar"));
+						Process process3 = pb3.start();
+						try {
+							process3.waitFor();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+							isActive.put(user, false);
+						}
+
+						// TODO
+						isActive.put(user, false);
+					} catch (IOException e) {
+						e.printStackTrace();
+						// userError.put(user, false);
+						isActive.put(user, false);
+					}
+				}
+			}).start();
+			return Response.ok().entity("").build();
+		} catch (Exception e) {
+			e.printStackTrace();
+			isActive.put(user, false);
+			expertLabel.remove(user);
+			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+		}
+	}
+
+	public Response processSingleText(String user, String expert, String template, TmitocarText body) {
+		// TODO Handle pdfs
+		isActive.put(user, true);
+		expertLabel.put(user, expert);
+		JSONObject j = new JSONObject();
+		j.put("user", user);
+		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
+		System.out.println("Block user");
+
+		// TODO Handle pdfs
+		try {
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					String textContent = "";
+					// problem here with the file name no? I mean if two threads do this, we will
+					// have one file overwriting the other?
+					String fileName = "text.txt";
+					System.out.println("Write File");
+					String type = body.getType();
+					String wordspec = body.getWordSpec();
+
+					if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
+						fileName = "text.txt";
+					} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
+						fileName = "text.pdf";
+					}
+					File f = new File("tmitocar/texts/" + user + "/" + fileName);
+					try {
+						boolean b = f.getParentFile().mkdirs();
+						b = f.createNewFile();
+
+						if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
+							/*
+							 * FileWriter writer = new FileWriter(f);
+							 * writer.write(body.getText().toLowerCase()); writer.close();
+							 */
+							byte[] decodedBytes = Base64.decode(body.getText());
+							System.out.println(decodedBytes);
+							FileUtils.writeByteArrayToFile(f, decodedBytes);
+							textContent = readTxtFile("tmitocar/texts/" + user + "/" + fileName);
+						} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
+							byte[] decodedBytes = Base64.decode(body.getText());
+							System.out.println(decodedBytes);
+							FileUtils.writeByteArrayToFile(f, decodedBytes);
+							textContent = readPDFFile("tmitocar/texts/" + user + "/" + fileName);
+						}
+						// spaces are not counted
+						if (textContent.replaceAll("\\s", "").length() < 350) {
+							userError.put(user, false);
+							System.out.println("not enough words");
+							throw new IOException();
+						}
+						userTexts.put(user, textContent);
+
+					} catch (IOException e) {
+						System.out.println("An error occurred: " + e.getMessage());
+						e.printStackTrace();
+
+						isActive.put(user, false);
+						Thread.currentThread().interrupt();
+					}
+
+					System.out.println("Upload text");
+					try {
+						// Store usertext cwith label
+						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o
+						// json -s -S
+						ProcessBuilder pb;
+						if (wordspec != null && wordspec.length() > 2) {
+							System.out.println("Using wordspec: " + wordspec);
+							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
+									"-l", user + expert, "-o", "json", "-S", "-w", wordspec);
+						} else {
+							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
+									"-l", user + expert, "-o", "json", "-S");
+						}
+
+						pb.inheritIO();
+						pb.directory(new File("tmitocar"));
+						Process process = pb.start();
+						try {
+							process.waitFor();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+							isActive.put(user, false);
+							userError.put(user, false);
+							Thread.currentThread().interrupt();
+						}
+
+						System.out.println("compare with expert");
+						// compare with expert text
+						// bash tmitocar.sh -l usertext -c expert1 -T -s -o json
+						ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", expert, "-c",
+								user + expert, "-o", "json", "-T");
+						pb2.inheritIO();
+						pb2.directory(new File("tmitocar"));
+						Process process2 = pb2.start();
+						try {
+							process2.waitFor();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+
+							userError.put(user, false);
+							isActive.put(user, false);
+							Thread.currentThread().interrupt();
+						}
+
+						System.out.println("gen feedback");
+
+						// generate feedback
+						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
+						ProcessBuilder pb3 = new ProcessBuilder("bash", "feedback.sh", "-s", "-o", "pdf", "-i",
+								"comparison_" + expert + "_vs_" + user + expert + ".json", "-t",
+								"templates/" + template, "-S", body.getTopic());
+						pb3.inheritIO();
+						pb3.directory(new File("tmitocar"));
+						Process process3 = pb3.start();
+						try {
+							process3.waitFor();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+							isActive.put(user, false);
+						}
+
+						// TODO
+						isActive.put(user, false);
+					} catch (IOException e) {
+						e.printStackTrace();
+						// userError.put(user, false);
+						isActive.put(user, false);
+					}
+				}
+			}).start();
+			return Response.ok().entity("").build();
+		} catch (Exception e) {
+			e.printStackTrace();
+			isActive.put(user, false);
+			expertLabel.remove(user);
+			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+		}
+	}
+
+	// only analyzes and generates feedback for one text, without comparison
+	@POST
+	@Path("/analyzeSingleText")
+	@Consumes(MediaType.TEXT_PLAIN)
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiOperation(value = "REPLACE THIS WITH AN APPROPRIATE FUNCTION NAME", notes = "REPLACE THIS WITH YOUR NOTES TO THE FUNCTION")
+	@ApiResponses(value = {
+			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "REPLACE THIS WITH YOUR OK MESSAGE") })
+	public Response analyzeText(String body) throws ParseException, IOException {
+		System.out.println(body);
+		JSONObject jsonBody = new JSONObject();
+		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+		jsonBody = (JSONObject) p.parse(body);
+		String errorMessage = "";
+		try {
+			errorMessage = jsonBody.getAsString("submissionFailed");
+		} catch (NullPointerException e) {
+			errorMessage = "Fehler";
+		}
+
+		System.out.println(jsonBody.getAsString("fileName"));
+		// check if name has correct form
+		if (!jsonBody.getAsString("fileName").split("\\.")[0].matches("\\w{2}\\d{4}\\w{2}")) {
+			jsonBody = new JSONObject();
+			jsonBody.put("text", errorMessage);
+			return Response.ok().entity(jsonBody).build();
+		}
+
+		TmitocarText tmitoBody = new TmitocarText();
+		tmitoBody.setTopic(jsonBody.getAsString("fileName"));
+		tmitoBody.setType(jsonBody.getAsString("fileType"));
+		tmitoBody.setWordSpec("1200");
+		tmitoBody.setText(jsonBody.getAsString("fileBody"));
+		processSingleText(jsonBody.getAsString("channel"), jsonBody.getAsString("fileName"), "template_ul_Q1_2021.md",
+				tmitoBody);
+		boolean isActive = true;
+		while (isActive) {
+			isActive = this.isActive.get(jsonBody.getAsString("channel"));
+			// isActive = Boolean.parseBoolean(result.getResponse());
+			System.out.println(isActive);
+			try {
+				Thread.sleep(1000);
+			} catch (Exception e) {
+				jsonBody.put("text", "Exception ist passiert " + e.toString());
+				e.printStackTrace();
+			}
+		}
+		System.out.println("try creating xapi statement");
+		if (userError.get(jsonBody.getAsString("channel")) == null) {
+			if (userTexts.get(jsonBody.getAsString("channel")).length() < 20) {
+				userError.put(jsonBody.getAsString("channel"), false);
+			} else {
+				try {
+					System.out.println("try creating xapi statement");
+					byte[] pdfByteAPI = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
+							+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
+					JSONObject xAPI = createXAPIStatement2(jsonBody.getAsString("email"),
+							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
+							fileBodyAPI);
+					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
+						sendXAPIStatement(xAPI);
+						System.out.println("xAPI statement created");
+					}
+					// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
+					// xAPI.toString() + "*" + jsonBody.getAsString("email"));
+				} catch (ParseException e) {
+					e.printStackTrace();
+					System.out.println("could not create API statement");
+				}
+			}
+		}
+		// byte[] pdfByte = getPDF(jsonBody.getAsString("channel"),
+		// this.expertLabel.get(jsonBody.getAsString("channel")))
+		// .getEntity().toString().getBytes();
+		// System.out.println(pdfByte);
+		JSONObject response = new JSONObject();
+		if (userTexts.get(jsonBody.getAsString("channel")) != null) {
+			System.out.println("converging pdf to base64");
+			try {
+				byte[] pdfByte = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
+						+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
+				response.put("fileBody", fileBody);
+				response.put("fileType", "pdf");
+				response.put("fileName", "Feedback");
+				userTexts.remove(jsonBody.getAsString("channel"));
+				System.out.println("finished conversion from pdf to base64");
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.println("failed conversion from pdf to base64");
+			}
+		}
+		errorMessage = "";
+		if ((userError.get(jsonBody.getAsString("channel")) != null && !userError.get(jsonBody.getAsString("channel")))
+				|| response.getAsString("fileBody") == null) {
+			if (jsonBody.get("submissionFailed") != null) {
+				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionFailed"));
+			} else {
+				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
+			}
+			System.out.println("Removing User from Errorlist1");
+			userError.remove(jsonBody.getAsString("channel"));
+		} else {
+			if (jsonBody.get("submissionSucceeded") != null)
+				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionSucceeded"));
+			System.out.println("Removing User from Errorlist2");
+			if (userError.get(jsonBody.getAsString("channel")) != null) {
+				userError.remove(jsonBody.getAsString("channel"));
+			}
+		}
+		System.out.println("response is " + response);
+		response.put("text", errorMessage);
+		return Response.ok().entity(response).build();
 	}
 
 	public static String encryptThisString(String input) {
