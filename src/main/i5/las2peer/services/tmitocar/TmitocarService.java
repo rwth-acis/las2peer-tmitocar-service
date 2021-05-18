@@ -82,7 +82,8 @@ public class TmitocarService extends RESTService {
 	private static HashMap<String, String> userTexts = null;
 	private static HashMap<String, Boolean> isActive = null;
 	private static HashMap<String, String> expertLabel = null;
-	private static HashMap<String, String> userCompateText = null;
+	private static HashMap<String, String> userCompareText = null;
+	private static HashMap<String, String> userCompareType = null;
 	private static final L2pLogger logger = L2pLogger.getInstance(TmitocarService.class.getName());
 
 	private final static String AUTH_FILE = "tmitocar/auth.json";
@@ -103,8 +104,11 @@ public class TmitocarService extends RESTService {
 		if (userError == null) {
 			userError = new HashMap<String, Boolean>();
 		}
-		if (userCompateText == null) {
-			userCompateText = new HashMap<String, String>();
+		if (userCompareText == null) {
+			userCompareText = new HashMap<String, String>();
+		}
+		if (userCompareType == null) {
+			userCompareType = new HashMap<String, String>();
 		}
 
 		File f = new File(AUTH_FILE);
@@ -400,6 +404,10 @@ public class TmitocarService extends RESTService {
 							System.out.println(decodedBytes);
 							FileUtils.writeByteArrayToFile(f, decodedBytes);
 							textContent = readPDFFile("tmitocar/texts/" + user + "/" + fileName);
+						} else {
+							userError.put(user, false);
+							System.out.println("wrong type");
+							throw new IOException();
 						}
 						// spaces are not counted
 						if (textContent.replaceAll("\\s", "").length() < 350) {
@@ -553,8 +561,9 @@ public class TmitocarService extends RESTService {
 						sendXAPIStatement(xAPI);
 						System.out.println("xAPI statement created");
 					}
-					// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
-					// xAPI.toString() + "*" + jsonBody.getAsString("email"));
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
+							xAPI.toString() + "*" + jsonBody.getAsString("email"));
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33, xAPI.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
 					System.out.println("could not create API statement");
@@ -634,19 +643,13 @@ public class TmitocarService extends RESTService {
 		}
 
 		System.out.println(jsonBody.getAsString("fileName"));
-		// check if name has correct form
-		if (!jsonBody.getAsString("fileName").split("\\.")[0].matches("\\w{2}\\d{4}\\w{2}")) {
-			jsonBody = new JSONObject();
-			jsonBody.put("text", errorMessage);
-			return Response.ok().entity(jsonBody).build();
-		}
 
 		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic(expertLabel);
+		tmitoBody.setTopic("Medienkompetenz");
 		tmitoBody.setType(jsonBody.getAsString("fileType"));
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.getAsString("fileBody"));
-		compareText(jsonBody.getAsString("channel"), expertLabel, "template_ul_Q1_2021.md", tmitoBody);
+		compareText(jsonBody.getAsString("channel"), expertLabel, "template_ddmz.md", tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
 			isActive = this.isActive.get(jsonBody.getAsString("channel"));
@@ -671,13 +674,12 @@ public class TmitocarService extends RESTService {
 					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
 					JSONObject xAPI = createXAPIStatement2(jsonBody.getAsString("email"),
 							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
-							fileBodyAPI);
+							fileBodyAPI, "compareToSample");
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
 						sendXAPIStatement(xAPI);
 						System.out.println("xAPI statement created");
 					}
-					// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
-					// xAPI.toString() + "*" + jsonBody.getAsString("email"));
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPI.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
 					System.out.println("could not create API statement");
@@ -830,18 +832,18 @@ public class TmitocarService extends RESTService {
 
 		System.out.println(jsonBody.getAsString("fileName"));
 		// check if name has correct form
-		if (!jsonBody.getAsString("fileName").split("\\.")[0].matches("\\w{2}\\d{4}\\w{2}")) {
+		if (userCompareText.get(jsonBody.getAsString("channel")) == null) {
 			jsonBody = new JSONObject();
 			jsonBody.put("text", errorMessage);
 			return Response.ok().entity(jsonBody).build();
 		}
 
 		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic("SelbstVergleich");
+		tmitoBody.setTopic("Medienkompetenz");
 		tmitoBody.setType(jsonBody.getAsString("fileType"));
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.getAsString("fileBody"));
-		compareOwnTexts(jsonBody.getAsString("channel"), "SelbstVergleich", "template_ul_Q1_2021.md", tmitoBody);
+		compareUserTexts(jsonBody.getAsString("channel"), "SelbstVergleich", "template_ddmz_twoTexts.md", tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
 			isActive = this.isActive.get(jsonBody.getAsString("channel"));
@@ -855,24 +857,33 @@ public class TmitocarService extends RESTService {
 			}
 		}
 		System.out.println("try creating xapi statement");
+
 		if (userError.get(jsonBody.getAsString("channel")) == null) {
 			if (userTexts.get(jsonBody.getAsString("channel")).length() < 20) {
 				userError.put(jsonBody.getAsString("channel"), false);
 			} else {
 				try {
 					System.out.println("try creating xapi statement");
-					byte[] pdfByteAPI = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
-							+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+					String type = "";
+					if (userCompareType.get(jsonBody.getAsString("channel")).toLowerCase().contains("pdf")) {
+						type = "pdf";
+					} else {
+						type = "txt";
+					}
+					System.out.println(type);
+					byte[] pdfByteAPI = Files.readAllBytes(
+							Paths.get("tmitocar/comparison_" + jsonBody.getAsString("channel") + "VergleichText." + type
+									+ "_vs_" + jsonBody.getAsString("channel") + "SelbstVergleich" + ".pdf"));
 					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
 					JSONObject xAPI = createXAPIStatement2(jsonBody.getAsString("email"),
 							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
-							fileBodyAPI);
+							fileBodyAPI, userCompareText.get(jsonBody.getAsString("channel")));
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
 						sendXAPIStatement(xAPI);
 						System.out.println("xAPI statement created");
-					}
-					// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
-					// xAPI.toString() + "*" + jsonBody.getAsString("email"));
+					} //
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, //
+							xAPI.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
 					System.out.println("could not create API statement");
@@ -887,22 +898,33 @@ public class TmitocarService extends RESTService {
 		if (userTexts.get(jsonBody.getAsString("channel")) != null) {
 			System.out.println("converging pdf to base64");
 			try {
-				byte[] pdfByte = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
-						+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+				String type = "";
+				if (userCompareType.get(jsonBody.getAsString("channel")).toLowerCase().contains("pdf")) {
+					type = "pdf";
+				} else {
+					type = "txt";
+				}
+				byte[] pdfByte = Files.readAllBytes(
+						Paths.get("tmitocar/comparison_" + jsonBody.getAsString("channel") + "VergleichText." + type
+								+ "_vs_" + jsonBody.getAsString("channel") + "SelbstVergleich" + ".pdf"));
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
 				response.put("fileType", "pdf");
 				response.put("fileName", "Feedback");
 				userTexts.remove(jsonBody.getAsString("channel"));
+				userCompareText.remove(jsonBody.getAsString("channel"));
 				System.out.println("finished conversion from pdf to base64");
 			} catch (Exception e) {
 				e.printStackTrace();
+				userTexts.remove(jsonBody.getAsString("channel"));
+				userCompareText.remove(jsonBody.getAsString("channel"));
 				System.out.println("failed conversion from pdf to base64");
 			}
 		}
 		errorMessage = "";
 		if ((userError.get(jsonBody.getAsString("channel")) != null && !userError.get(jsonBody.getAsString("channel")))
 				|| response.getAsString("fileBody") == null) {
+			userCompareText.remove(jsonBody.getAsString("channel"));
 			if (jsonBody.get("submissionFailed") != null) {
 				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionFailed"));
 			} else {
@@ -915,6 +937,7 @@ public class TmitocarService extends RESTService {
 				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionSucceeded"));
 			System.out.println("Removing User from Errorlist2");
 			if (userError.get(jsonBody.getAsString("channel")) != null) {
+				userCompareText.remove(jsonBody.getAsString("channel"));
 				userError.remove(jsonBody.getAsString("channel"));
 			}
 		}
@@ -933,13 +956,24 @@ public class TmitocarService extends RESTService {
 	@ApiResponses(value = {
 			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "REPLACE THIS WITH YOUR OK MESSAGE") })
 	public Response storeCompareText(String body) throws ParseException, IOException {
+		// add conversion to txt file + check whether file contains enough words.
 		System.out.println(body);
 		JSONObject jsonBody = new JSONObject();
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
+		System.out.println(jsonBody.getAsString("fileName"));
+		// check if name has correct form
+		if ((!jsonBody.getAsString("fileType").toLowerCase().contains("pdf")
+				&& !jsonBody.getAsString("fileType").toLowerCase().contains("txt")
+				&& !jsonBody.getAsString("fileType").toLowerCase().contains("text"))) {
+			jsonBody = new JSONObject();
+			jsonBody.put("text", "Wrong file name/type");
+			return Response.ok().entity(jsonBody).build();
+		}
 		String message = "";
 		if (jsonBody.getAsString("fileBody") != null) {
-			userCompateText.put(jsonBody.getAsString("channel"), jsonBody.getAsString("fileBody"));
+			userCompareText.put(jsonBody.getAsString("channel"), jsonBody.getAsString("fileBody"));
+			userCompareType.put(jsonBody.getAsString("channel"), jsonBody.getAsString("fileType"));
 			if (jsonBody.getAsString("submissionSucceeded") != null) {
 				message = jsonBody.getAsString("submissionSucceeded");
 			}
@@ -972,7 +1006,7 @@ public class TmitocarService extends RESTService {
 					// problem here with the file name no? I mean if two threads do this, we will
 					// have one file overwriting the other?
 					String fileName = "text.txt";
-					String compareFileName = "VergleichText.txt";
+					String compareFileName = user + "VergleichText.txt";
 					System.out.println("Write File");
 					String type = body.getType();
 					String wordspec = body.getWordSpec();
@@ -982,12 +1016,34 @@ public class TmitocarService extends RESTService {
 					} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
 						fileName = "text.pdf";
 					}
+					if (userCompareType.get(user).toLowerCase().equals("text/plain")
+							|| type.toLowerCase().equals("text")) {
+						compareFileName = user + "VergleichText.txt";
+					} else if (userCompareType.get(user).toLowerCase().equals("application/pdf")
+							|| userCompareType.get(user).toLowerCase().contains("pdf")) {
+						compareFileName = user + "VergleichText.pdf";
+					}
+					System.out.println(compareFileName);
 					File compare = new File("tmitocar/texts/" + user + "/" + compareFileName);
 					File f = new File("tmitocar/texts/" + user + "/" + fileName);
+
+					// bash tmitocar.sh -i experttexts/Experte_01.txt -l t1 -o json -s -S
 					try {
+						boolean c = compare.getParentFile().mkdirs();
+						c = compare.createNewFile();
 						boolean b = f.getParentFile().mkdirs();
 						b = f.createNewFile();
-
+						byte[] decodedBytesCompare = Base64.decode(userCompareText.get(user));
+						FileUtils.writeByteArrayToFile(compare, decodedBytesCompare);
+						String textContentCompare = "";
+						readTxtFile("tmitocar/texts/" + user + "/" + compareFileName);
+						if (compareFileName.toLowerCase().contains("pdf")) {
+							textContentCompare = readPDFFile("tmitocar/texts/" + user + "/" + compareFileName);
+						} else {
+							textContentCompare = readTxtFile("tmitocar/texts/" + user + "/" + compareFileName);
+						}
+						System.out.println(textContentCompare);
+						userCompareText.put(user, textContentCompare);
 						if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
 							/*
 							 * FileWriter writer = new FileWriter(f);
@@ -1002,10 +1058,17 @@ public class TmitocarService extends RESTService {
 							System.out.println(decodedBytes);
 							FileUtils.writeByteArrayToFile(f, decodedBytes);
 							textContent = readPDFFile("tmitocar/texts/" + user + "/" + fileName);
+						} else {
+							userError.put(user, false);
+							userCompareText.remove(user);
+							System.out.println("not enough words");
+							throw new IOException();
 						}
 						// spaces are not counted
-						if (textContent.replaceAll("\\s", "").length() < 350) {
+						if (textContent.replaceAll("\\s", "").length() < 350
+								|| textContentCompare.replaceAll("\\s", "").length() < 350) {
 							userError.put(user, false);
+							userCompareText.remove(user);
 							System.out.println("not enough words");
 							throw new IOException();
 						}
@@ -1018,9 +1081,39 @@ public class TmitocarService extends RESTService {
 						isActive.put(user, false);
 						Thread.currentThread().interrupt();
 					}
+					// add cleanup of text here like how i did it manually with the texts for
+					// leipzig
 
 					System.out.println("Upload text");
 					try {
+
+						// Store usercomparetext cwith label
+						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o
+						// json -s -S
+						ProcessBuilder pb0;
+						if (wordspec != null && wordspec.length() > 2) {
+							System.out.println("Using wordspec: " + wordspec);
+							pb0 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
+									"texts/" + user + "/" + compareFileName, "-l", compareFileName, "-o", "json", "-w",
+									wordspec, "-S");
+						} else {
+							pb0 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
+									"texts/" + user + "/" + compareFileName, "-l", compareFileName, "-o", "json", "-S");
+						}
+
+						pb0.inheritIO();
+						pb0.directory(new File("tmitocar"));
+						Process process0 = pb0.start();
+						try {
+							process0.waitFor();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+							isActive.put(user, false);
+							userError.put(user, false);
+							Thread.currentThread().interrupt();
+						}
+
 						// Store usertext cwith label
 						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o
 						// json -s -S
@@ -1028,7 +1121,7 @@ public class TmitocarService extends RESTService {
 						if (wordspec != null && wordspec.length() > 2) {
 							System.out.println("Using wordspec: " + wordspec);
 							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
-									"-l", user + expert, "-o", "json", "-S", "-w", wordspec);
+									"-l", user + expert, "-o", "json", "-w", wordspec, "-S");
 						} else {
 							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
 									"-l", user + expert, "-o", "json", "-S");
@@ -1050,8 +1143,8 @@ public class TmitocarService extends RESTService {
 						System.out.println("compare with expert");
 						// compare with expert text
 						// bash tmitocar.sh -l usertext -c expert1 -T -s -o json
-						ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", expert, "-c",
-								user + expert, "-o", "json", "-T");
+						ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", compareFileName,
+								"-c", user + expert, "-o", "json", "-T");
 						pb2.inheritIO();
 						pb2.directory(new File("tmitocar"));
 						Process process2 = pb2.start();
@@ -1071,7 +1164,7 @@ public class TmitocarService extends RESTService {
 						// generate feedback
 						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
 						ProcessBuilder pb3 = new ProcessBuilder("bash", "feedback.sh", "-s", "-o", "pdf", "-i",
-								"comparison_" + expert + "_vs_" + user + expert + ".json", "-t",
+								"comparison_" + compareFileName + "_vs_" + user + expert + ".json", "-t",
 								"templates/" + template, "-S", body.getTopic());
 						pb3.inheritIO();
 						pb3.directory(new File("tmitocar"));
@@ -1173,11 +1266,11 @@ public class TmitocarService extends RESTService {
 						ProcessBuilder pb;
 						if (wordspec != null && wordspec.length() > 2) {
 							System.out.println("Using wordspec: " + wordspec);
-							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
-									"-l", user + expert, "-o", "json", "-S", "-w", wordspec);
+							pb = new ProcessBuilder("bash", "tmitocar.sh", "-i", "texts/" + user + "/" + fileName, "-l",
+									user + expert, "-o", "svg", "-s", "-w", wordspec);
 						} else {
-							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
-									"-l", user + expert, "-o", "json", "-S");
+							pb = new ProcessBuilder("bash", "tmitocar.sh", "-i", "texts/" + user + "/" + fileName, "-l",
+									user + expert, "-o", "svg", "-s");
 						}
 
 						pb.inheritIO();
@@ -1193,37 +1286,17 @@ public class TmitocarService extends RESTService {
 							Thread.currentThread().interrupt();
 						}
 
-						System.out.println("compare with expert");
-						// compare with expert text
-						// bash tmitocar.sh -l usertext -c expert1 -T -s -o json
-						ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", expert, "-c",
-								user + expert, "-o", "json", "-T");
+						System.out.println("gen feedback");
+
+						// generate feedback
+						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
+						ProcessBuilder pb2 = new ProcessBuilder("bash", "feedback_single.sh", "-s", "-o", "pdf", "-i",
+								"texts/" + user + "/text-modell" + ".svg", "-t", "templates/" + template);
 						pb2.inheritIO();
 						pb2.directory(new File("tmitocar"));
 						Process process2 = pb2.start();
 						try {
 							process2.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-
-							userError.put(user, false);
-							isActive.put(user, false);
-							Thread.currentThread().interrupt();
-						}
-
-						System.out.println("gen feedback");
-
-						// generate feedback
-						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
-						ProcessBuilder pb3 = new ProcessBuilder("bash", "feedback.sh", "-s", "-o", "pdf", "-i",
-								"comparison_" + expert + "_vs_" + user + expert + ".json", "-t",
-								"templates/" + template, "-S", body.getTopic());
-						pb3.inheritIO();
-						pb3.directory(new File("tmitocar"));
-						Process process3 = pb3.start();
-						try {
-							process3.waitFor();
 						} catch (InterruptedException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
@@ -1256,7 +1329,7 @@ public class TmitocarService extends RESTService {
 	@ApiOperation(value = "REPLACE THIS WITH AN APPROPRIATE FUNCTION NAME", notes = "REPLACE THIS WITH YOUR NOTES TO THE FUNCTION")
 	@ApiResponses(value = {
 			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "REPLACE THIS WITH YOUR OK MESSAGE") })
-	public Response analyzeText(String body) throws ParseException, IOException {
+	public Response analyzeSingleText(String body) throws ParseException, IOException {
 		System.out.println(body);
 		JSONObject jsonBody = new JSONObject();
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
@@ -1269,19 +1342,13 @@ public class TmitocarService extends RESTService {
 		}
 
 		System.out.println(jsonBody.getAsString("fileName"));
-		// check if name has correct form
-		if (!jsonBody.getAsString("fileName").split("\\.")[0].matches("\\w{2}\\d{4}\\w{2}")) {
-			jsonBody = new JSONObject();
-			jsonBody.put("text", errorMessage);
-			return Response.ok().entity(jsonBody).build();
-		}
 
 		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic(jsonBody.getAsString("fileName"));
+		tmitoBody.setTopic("Medienkompetenz");
 		tmitoBody.setType(jsonBody.getAsString("fileType"));
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.getAsString("fileBody"));
-		processSingleText(jsonBody.getAsString("channel"), jsonBody.getAsString("fileName"), "template_ul_Q1_2021.md",
+		processSingleText(jsonBody.getAsString("channel"), jsonBody.getAsString("fileName"), "template_ddmz_single.md",
 				tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
@@ -1302,18 +1369,19 @@ public class TmitocarService extends RESTService {
 			} else {
 				try {
 					System.out.println("try creating xapi statement");
-					byte[] pdfByteAPI = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
-							+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+					byte[] pdfByteAPI = Files.readAllBytes(Paths
+							.get("tmitocar/texts/" + jsonBody.getAsString("channel") + "/" + "text-modell" + ".pdf"));
 					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
 					JSONObject xAPI = createXAPIStatement2(jsonBody.getAsString("email"),
 							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
-							fileBodyAPI);
-					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
+							fileBodyAPI, "singleAnalysis");
+					if (jsonBody.get("lrs") != null) {
 						sendXAPIStatement(xAPI);
 						System.out.println("xAPI statement created");
 					}
-					// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
-					// xAPI.toString() + "*" + jsonBody.getAsString("email"));
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
+							xAPI.toString() + "*" + jsonBody.getAsString("email"));
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPI.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
 					System.out.println("could not create API statement");
@@ -1328,8 +1396,8 @@ public class TmitocarService extends RESTService {
 		if (userTexts.get(jsonBody.getAsString("channel")) != null) {
 			System.out.println("converging pdf to base64");
 			try {
-				byte[] pdfByte = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
-						+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+				byte[] pdfByte = Files.readAllBytes(
+						Paths.get("tmitocar/texts/" + jsonBody.getAsString("channel") + "/" + "text-modell" + ".pdf"));
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
 				response.put("fileType", "pdf");
@@ -1359,7 +1427,7 @@ public class TmitocarService extends RESTService {
 				userError.remove(jsonBody.getAsString("channel"));
 			}
 		}
-		System.out.println("response is " + response);
+		// System.out.println("response is " + response);
 		response.put("text", errorMessage);
 		return Response.ok().entity(response).build();
 	}
@@ -1469,8 +1537,8 @@ public class TmitocarService extends RESTService {
 	}
 
 	// same as before but also stores the bytes of the generated file
-	public JSONObject createXAPIStatement2(String userMail, String assignmentTitle, String text, String feedbackBody)
-			throws ParseException {
+	public JSONObject createXAPIStatement2(String userMail, String assignmentTitle, String text, String feedbackBody,
+			String analysisType) throws ParseException {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		JSONObject actor = new JSONObject();
 		actor.put("objectType", "Agent");
@@ -1484,11 +1552,25 @@ public class TmitocarService extends RESTService {
 		JSONObject object = (JSONObject) p
 				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + assignmentTitle
 						+ "'}, 'description':{'en-US':'" + assignmentTitle
-						+ "'}, 'type':'https://tech4comp.de/xapi/activitytype/file'},'id':'https://tech4comp.de/biwi5/file/"
+						+ "'}, 'type':'https://tech4comp.de/xapi/activitytype/file'},'id':'https://tech4comp.de/dresden/file/"
 						+ encryptThisString(userMail) + assignmentTitle + "', 'objectType':'Activity'}"));
-		JSONObject context = (JSONObject) p
-				.parse(new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'"
-						+ text + "', 'feedbackBase64':'" + feedbackBody + "'}}}"));
+		JSONObject context = new JSONObject();
+		if (analysisType.equals("compareToSample")) {
+			context = (JSONObject) p.parse(new String(
+					"{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'" + text
+							+ "', 'analysisType':'compareToSample', 'feedbackBase64':'" + feedbackBody + "'}}}"));
+		} else if (analysisType.equals("singleAnalysis")) {
+			context = (JSONObject) p.parse(
+					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'"
+							+ text + "', 'analysisType':'singleAnalysis', 'feedbackBase64':'" + feedbackBody + "'}}}"));
+		} else {
+			// Bad practice here: decided to simply put the first compare text into the
+			// analysisType attribute
+			context = (JSONObject) p.parse(
+					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text1':'"
+							+ analysisType + "','text2':'" + text
+							+ "', 'analysisType':'compareTwoTexts', 'feedbackBase64':'" + feedbackBody + "'}}}"));
+		}
 		JSONObject xAPI = new JSONObject();
 
 		xAPI.put("authority", p.parse(
@@ -1498,7 +1580,7 @@ public class TmitocarService extends RESTService {
 		xAPI.put("actor", actor);
 		xAPI.put("object", object);
 		xAPI.put("verb", verb);
-		System.out.println(xAPI);
+		// System.out.println(xAPI);
 		return xAPI;
 	}
 
