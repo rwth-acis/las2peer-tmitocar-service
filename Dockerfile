@@ -28,7 +28,12 @@ RUN chmod -R 777 tmitocar
 
 RUN dos2unix tmitocar/tmitocar.sh
 
+RUN dos2unix tmitocar/feedback.sh
+
 RUN chmod +x /src/docker-entrypoint.sh
+RUN dos2unix /src/docker-entrypoint.sh
+RUN dos2unix /src/etc/ant_configuration/service.properties
+
 
 RUN ant jar startscripts
 

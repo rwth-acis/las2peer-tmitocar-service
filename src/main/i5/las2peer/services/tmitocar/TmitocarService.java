@@ -110,6 +110,9 @@ public class TmitocarService extends RESTService {
 		if (userCompareType == null) {
 			userCompareType = new HashMap<String, String>();
 		}
+		if (userCompareName == null) {
+			userCompareName = new HashMap<String, String>();
+		}
 
 		File f = new File(AUTH_FILE);
 		if (Files.notExists(f.toPath())) {
@@ -974,6 +977,7 @@ public class TmitocarService extends RESTService {
 		if (jsonBody.getAsString("fileBody") != null) {
 			userCompareText.put(jsonBody.getAsString("channel"), jsonBody.getAsString("fileBody"));
 			userCompareType.put(jsonBody.getAsString("channel"), jsonBody.getAsString("fileType"));
+			userCompareName.put(jsonBody.getAsString("email"), jsonBody.getAsString("fileName"));
 			if (jsonBody.getAsString("submissionSucceeded") != null) {
 				message = jsonBody.getAsString("submissionSucceeded");
 			}
