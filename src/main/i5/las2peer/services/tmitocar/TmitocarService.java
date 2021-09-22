@@ -84,6 +84,7 @@ public class TmitocarService extends RESTService {
 	private static HashMap<String, String> expertLabel = null;
 	private static HashMap<String, String> userCompareText = null;
 	private static HashMap<String, String> userCompareType = null;
+	private static HashMap<String, String> userCompareName = null;
 	private static final L2pLogger logger = L2pLogger.getInstance(TmitocarService.class.getName());
 
 	private final static String AUTH_FILE = "tmitocar/auth.json";
@@ -1569,10 +1570,11 @@ public class TmitocarService extends RESTService {
 							+ text + "', 'analysisType':'singleAnalysis', 'feedbackBase64':'" + feedbackBody + "'}}}"));
 		} else {
 			// Bad practice here: decided to simply put the first compare text into the
-			// analysisType attribute
+			// analysisType parameter
 			context = (JSONObject) p.parse(
 					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text1':'"
-							+ analysisType + "','text2':'" + text
+							+ analysisType + "','text2':'" + text + "','name1':'" + userCompareName.get(userMail)
+							+ "','name2':'" + assignmentTitle
 							+ "', 'analysisType':'compareTwoTexts', 'feedbackBase64':'" + feedbackBody + "'}}}"));
 		}
 		JSONObject xAPI = new JSONObject();
