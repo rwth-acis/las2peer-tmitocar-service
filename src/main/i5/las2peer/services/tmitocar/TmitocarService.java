@@ -77,7 +77,8 @@ public class TmitocarService extends RESTService {
 	private String publicKey;
 	private String privateKey;
 	private String lrsURL;
-	private String lrsAuthToken;
+	private String lrsAuthTokenDresden;
+	private String lrsAuthTokenLeipzig;
 	private static HashMap<String, Boolean> userError = null;
 	private static HashMap<String, String> userTexts = null;
 	private static HashMap<String, Boolean> isActive = null;
@@ -559,10 +560,11 @@ public class TmitocarService extends RESTService {
 			} else {
 				try {
 					System.out.println("try creating xapi statement");
-					JSONObject xAPI = createXAPIStatement(jsonBody.getAsString("email"), expertLabel,
+					JSONObject xAPI = createXAPIStatement(jsonBody.getAsString("email"),
+							jsonBody.getAsString("fileName"), expertLabel.replace('t', ""),
 							userTexts.get(jsonBody.getAsString("channel")));
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
-						sendXAPIStatement(xAPI);
+						sendXAPIStatement(xAPI, "leipzig");
 						System.out.println("xAPI statement created");
 					}
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
@@ -680,7 +682,7 @@ public class TmitocarService extends RESTService {
 							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
 							fileBodyAPI, "compareToSample");
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
-						sendXAPIStatement(xAPI);
+						sendXAPIStatement(xAPI, "dresden");
 						System.out.println("xAPI statement created");
 					}
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPI.toString());
@@ -758,7 +760,7 @@ public class TmitocarService extends RESTService {
 		conn.setRequestMethod("GET");
 		conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
 		conn.setRequestProperty("X-Experience-API-Version", "1.0.3");
-		conn.setRequestProperty("Authorization", "Basic " + lrsAuthToken);
+		conn.setRequestProperty("Authorization", "Basic " + lrsAuthTokenLeipzig);
 		conn.setRequestProperty("Cache-Control", "no-cache");
 		conn.setUseCaches(false);
 		BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -883,7 +885,7 @@ public class TmitocarService extends RESTService {
 							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
 							fileBodyAPI, userCompareText.get(jsonBody.getAsString("channel")));
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
-						sendXAPIStatement(xAPI);
+						sendXAPIStatement(xAPI, "dresden");
 						System.out.println("xAPI statement created");
 					} //
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, //
@@ -1381,7 +1383,7 @@ public class TmitocarService extends RESTService {
 							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
 							fileBodyAPI, "singleAnalysis");
 					if (jsonBody.get("lrs") != null) {
-						sendXAPIStatement(xAPI);
+						sendXAPIStatement(xAPI, "dresden");
 						System.out.println("xAPI statement created");
 					}
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
@@ -1522,12 +1524,13 @@ public class TmitocarService extends RESTService {
 		JSONObject verb = (JSONObject) p
 				.parse(new String("{'display':{'en-US':'sent_file'},'id':'https://tech4comp.de/xapi/verb/sent_file'}"));
 		JSONObject object = (JSONObject) p
-				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + assignmentTitle
-						+ "'}, 'description':{'en-US':'" + assignmentTitle
+				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + fileName
+						+ "'}, 'description':{'en-US':'" + fileName
 						+ "'}, 'type':'https://tech4comp.de/xapi/activitytype/file'},'id':'https://tech4comp.de/biwi5/file/"
 						+ encryptThisString(userMail) + assignmentTitle + "', 'objectType':'Activity'}"));
 		JSONObject context = (JSONObject) p.parse(new String(
-				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'" + text + "'}}}"));
+				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'assignmentNumber':'"
+						+ assignmentTitle + "','text':'" + text + "'}}}"));
 		JSONObject xAPI = new JSONObject();
 
 		xAPI.put("authority", p.parse(
@@ -1591,7 +1594,7 @@ public class TmitocarService extends RESTService {
 	}
 
 	// wrote method in case I dont manage to fix learning locker problem...
-	public void sendXAPIStatement(JSONObject xAPI) {
+	public void sendXAPIStatement(JSONObject xAPI, String lrs) {
 		// Copy pasted from LL service
 		// POST statements
 		try {
@@ -1602,7 +1605,11 @@ public class TmitocarService extends RESTService {
 			conn.setRequestMethod("POST");
 			conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
 			conn.setRequestProperty("X-Experience-API-Version", "1.0.3");
-			conn.setRequestProperty("Authorization", "Basic " + lrsAuthToken);
+			if (lrs.equals("dresden")) {
+				conn.setRequestProperty("Authorization", "Basic " + lrsAuthTokenDresden);
+			} else if (lrs.equals("leipzig")) {
+				conn.setRequestProperty("Authorization", "Basic " + lrsAuthTokenLeipzig);
+			}
 			conn.setRequestProperty("Cache-Control", "no-cache");
 			conn.setUseCaches(false);
 
