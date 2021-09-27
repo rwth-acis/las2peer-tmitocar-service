@@ -561,7 +561,7 @@ public class TmitocarService extends RESTService {
 				try {
 					System.out.println("try creating xapi statement");
 					JSONObject xAPI = createXAPIStatement(jsonBody.getAsString("email"),
-							jsonBody.getAsString("fileName"), expertLabel.replace('t', ""),
+							jsonBody.getAsString("fileName"), expertLabel.replace("t", ""),
 							userTexts.get(jsonBody.getAsString("channel")));
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
 						sendXAPIStatement(xAPI, "leipzig");
