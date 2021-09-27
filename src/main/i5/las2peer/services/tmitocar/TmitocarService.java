@@ -1565,21 +1565,20 @@ public class TmitocarService extends RESTService {
 						+ encryptThisString(userMail) + assignmentTitle + "', 'objectType':'Activity'}"));
 		JSONObject context = new JSONObject();
 		if (analysisType.equals("compareToSample")) {
-			context = (JSONObject) p.parse(new String(
-					"{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'" + text
-							+ "', 'analysisType':'compareToSample', 'feedbackBase64':'" + feedbackBody + "'}}}"));
+			context = (JSONObject) p.parse(
+					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'"
+							+ text + "', 'analysisType':'compareToSample'}}}"));
 		} else if (analysisType.equals("singleAnalysis")) {
 			context = (JSONObject) p.parse(
 					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'"
-							+ text + "', 'analysisType':'singleAnalysis', 'feedbackBase64':'" + feedbackBody + "'}}}"));
+							+ text + "', 'analysisType':'singleAnalysis'}}}"));
 		} else {
 			// Bad practice here: decided to simply put the first compare text into the
 			// analysisType parameter
 			context = (JSONObject) p.parse(
 					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text1':'"
 							+ analysisType + "','text2':'" + text + "','name1':'" + userCompareName.get(userMail)
-							+ "','name2':'" + assignmentTitle
-							+ "', 'analysisType':'compareTwoTexts', 'feedbackBase64':'" + feedbackBody + "'}}}"));
+							+ "','name2':'" + assignmentTitle + "', 'analysisType':'compareTwoTexts'}}}"));
 		}
 		JSONObject xAPI = new JSONObject();
 
