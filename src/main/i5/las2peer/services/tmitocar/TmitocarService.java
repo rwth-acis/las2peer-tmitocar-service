@@ -641,7 +641,7 @@ public class TmitocarService extends RESTService {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
 		String errorMessage = "";
-		String expertLabel = "Mustertext_SS";
+		String expertLabel = "Mustertext_WS";
 		try {
 			errorMessage = jsonBody.getAsString("submissionFailed");
 		} catch (NullPointerException e) {
