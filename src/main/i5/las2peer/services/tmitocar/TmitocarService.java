@@ -1512,7 +1512,8 @@ public class TmitocarService extends RESTService {
 
 	}
 
-	public JSONObject createXAPIStatement(String userMail, String assignmentTitle, String text) throws ParseException {
+	public JSONObject createXAPIStatement(String userMail, String fileName, String assignmentTitle, String text)
+			throws ParseException {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		JSONObject actor = new JSONObject();
 		actor.put("objectType", "Agent");
