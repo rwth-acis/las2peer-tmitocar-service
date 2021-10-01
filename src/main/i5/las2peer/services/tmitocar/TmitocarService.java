@@ -83,6 +83,7 @@ public class TmitocarService extends RESTService {
 	private static HashMap<String, String> userTexts = null;
 	private static HashMap<String, Boolean> isActive = null;
 	private static HashMap<String, String> expertLabel = null;
+	private static HashMap<String, String> jsonFile = null;
 	private static HashMap<String, String> userCompareText = null;
 	private static HashMap<String, String> userCompareType = null;
 	private static HashMap<String, String> userCompareName = null;
@@ -114,6 +115,10 @@ public class TmitocarService extends RESTService {
 		}
 		if (userCompareName == null) {
 			userCompareName = new HashMap<String, String>();
+		}
+
+		if (jsonFile == null) {
+			jsonFile = new HashMap<String, String>();
 		}
 
 		File f = new File(AUTH_FILE);
@@ -580,6 +585,7 @@ public class TmitocarService extends RESTService {
 		// this.expertLabel.get(jsonBody.getAsString("channel")))
 		// .getEntity().toString().getBytes();
 		// System.out.println(pdfByte);
+
 		JSONObject response = new JSONObject();
 		if (userTexts.get(jsonBody.getAsString("channel")) != null) {
 			System.out.println("converging pdf to base64");
@@ -591,7 +597,10 @@ public class TmitocarService extends RESTService {
 				response.put("fileType", "pdf");
 				response.put("fileName", "Feedback");
 				userTexts.remove(jsonBody.getAsString("channel"));
+				jsonFile.put(jsonBody.getAsString("channel"), "tmitocar/comparison_" + expertLabel + "_vs_"
+						+ jsonBody.getAsString("channel") + expertLabel + ".json");
 				System.out.println("finished conversion from pdf to base64");
+
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.out.println("failed conversion from pdf to base64");
@@ -615,6 +624,56 @@ public class TmitocarService extends RESTService {
 				userError.remove(jsonBody.getAsString("channel"));
 			}
 		}
+		System.out.println("response is " + response);
+		response.put("text", errorMessage);
+		return Response.ok().entity(response).build();
+	}
+
+	/**
+	 * After analysing text, send json graph?
+	 * 
+	 * @param body Text to be analyzed
+	 * @return Returns an HTTP response with png content derived from the underlying
+	 *         tmitocar service.
+	 */
+	@POST
+	@Path("/sendJson")
+	@Consumes(MediaType.TEXT_PLAIN)
+	@Produces(MediaType.APPLICATION_JSON)
+	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
+	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
+	public Response sendJson(String body) throws ParseException, IOException {
+		System.out.println(body);
+		JSONObject jsonBody = new JSONObject();
+		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+		jsonBody = (JSONObject) p.parse(body);
+		// byte[] pdfByte = getPDF(jsonBody.getAsString("channel"),
+		// this.expertLabel.get(jsonBody.getAsString("channel")))
+		// .getEntity().toString().getBytes();
+		// System.out.println(pdfByte);
+
+		JSONObject response = new JSONObject();
+		if (jsonFile.containsKey(jsonBody.getAsString("channel"))) {
+			try {
+				byte[] pdfByte = Files.readAllBytes(Paths.get(jsonFile.containsKey(jsonBody.getAsString("channel"))));
+				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
+				response.put("fileBody", fileBody);
+				response.put("fileType", "json");
+				response.put("fileName", "Json Graph");
+				response.put("text", jsonBody.getAsString("submissionSucceeded"));
+				jsonFile.remove(jsonBody.getAsString("channel"));
+				System.out.println("finished conversion from pdf to base64");
+				return Response.ok().entity(response).build();
+
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.println("failed conversion from pdf to base64");
+			}
+		} else {
+			response.put("text", jsonBody.getAsString("submissionFailed"));
+			return Response.ok().entity(response).build();
+		}
+		String errorMessage = "";
 		System.out.println("response is " + response);
 		response.put("text", errorMessage);
 		return Response.ok().entity(response).build();
@@ -1478,7 +1537,6 @@ public class TmitocarService extends RESTService {
 			e.printStackTrace();
 		}
 
-		System.out.println("text " + text);
 		return text;
 	}
 
