@@ -659,7 +659,7 @@ public class TmitocarService extends RESTService {
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
 				response.put("fileType", "json");
-				response.put("fileName", "Json Graph");
+				response.put("fileName", "JsonGraph");
 				response.put("text", jsonBody.getAsString("submissionSucceeded"));
 				jsonFile.remove(jsonBody.getAsString("channel"));
 				System.out.println("finished conversion from pdf to base64");
