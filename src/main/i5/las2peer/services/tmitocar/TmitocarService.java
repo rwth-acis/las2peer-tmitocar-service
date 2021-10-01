@@ -655,7 +655,7 @@ public class TmitocarService extends RESTService {
 		JSONObject response = new JSONObject();
 		if (jsonFile.containsKey(jsonBody.getAsString("channel"))) {
 			try {
-				byte[] pdfByte = Files.readAllBytes(Paths.get(jsonFile.containsKey(jsonBody.getAsString("channel"))));
+				byte[] pdfByte = Files.readAllBytes(Paths.get(jsonFile.get(jsonBody.getAsString("channel"))));
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
 				response.put("fileType", "json");
