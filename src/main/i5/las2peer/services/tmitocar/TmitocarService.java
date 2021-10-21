@@ -847,17 +847,21 @@ public class TmitocarService extends RESTService {
 				JSONObject context = (JSONObject) jsonIndex.get("context");
 				// JSONObject definition = (JSONObject) object.get("definition");
 				JSONObject extension = (JSONObject) context.get("extension");// assignmentNumber
-				String assignmentName = extension.getAsString("assignmentNumber");
-				// JSONObject name = (JSONObject) definition.get("name");
-				// String assignmentName = name.getAsString("en-US");
-				System.out.println("13");
-				try {
-					// int assignmentNumber = Integer.valueOf(assignmentName.split("t")[1]);
-					int assignmentNumber = Integer.valueOf(assignmentName);
-					System.out.println("14");
-					assignments[assignmentNumber - 1]++;
-				} catch (Exception e) {
-					e.printStackTrace();
+				if (extension.getAsString("assignmentNumber") != null) {
+					String assignmentName = extension.getAsString("assignmentNumber");
+					// JSONObject name = (JSONObject) definition.get("name");
+					// String assignmentName = name.getAsString("en-US");
+					System.out.println("13");
+					try {
+						// int assignmentNumber = Integer.valueOf(assignmentName.split("t")[1]);
+						int assignmentNumber = Integer.valueOf(assignmentName);
+						System.out.println("14");
+						assignments[assignmentNumber - 1]++;
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+					System.out.println("15");
+					// System.out.println("Extracted actor is " + name.getAsString("en-US"));
 				}
 				System.out.println("15");
 				// System.out.println("Extracted actor is " + name.getAsString("en-US"));
