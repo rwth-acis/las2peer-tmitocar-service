@@ -849,9 +849,9 @@ public class TmitocarService extends RESTService {
 				// JSONObject object = (JSONObject) jsonIndex.get("object");
 				JSONObject context = (JSONObject) jsonIndex.get("context");
 				// JSONObject definition = (JSONObject) object.get("definition");
-				JSONObject extension = (JSONObject) context.get("extension");// assignmentNumber
-				if (extension.get("assignmentNumber") != null) {
-					String assignmentName = extension.getAsString("assignmentNumber");
+				JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
+				if (extensions.get("assignmentNumber") != null) {
+					String assignmentName = extensions.getAsString("assignmentNumber");
 					// JSONObject name = (JSONObject) definition.get("name");
 					// String assignmentName = name.getAsString("en-US");
 					System.out.println("13");
