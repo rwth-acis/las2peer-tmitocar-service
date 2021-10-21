@@ -866,8 +866,6 @@ public class TmitocarService extends RESTService {
 					System.out.println("15");
 					// System.out.println("Extracted actor is " + name.getAsString("en-US"));
 				}
-				System.out.println("15");
-				// System.out.println("Extracted actor is " + name.getAsString("en-US"));
 			}
 		}
 		String msg = "";
