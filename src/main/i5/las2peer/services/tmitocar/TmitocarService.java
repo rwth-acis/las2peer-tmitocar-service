@@ -572,9 +572,10 @@ public class TmitocarService extends RESTService {
 						sendXAPIStatement(xAPI, "leipzig");
 						System.out.println("xAPI statement created");
 					}
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
-							xAPI.toString() + "*" + jsonBody.getAsString("email"));
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33, xAPI.toString());
+					// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
+					// xAPI.toString() + "*" + jsonBody.getAsString("email"));
+					// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33,
+					// xAPI.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
 					System.out.println("could not create API statement");
