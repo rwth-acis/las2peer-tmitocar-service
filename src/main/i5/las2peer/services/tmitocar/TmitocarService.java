@@ -831,13 +831,16 @@ public class TmitocarService extends RESTService {
 		}
 		in.close();
 		conn.disconnect();
+		System.out.println("10");
 		jsonBody = (JSONObject) p.parse(response.toString());
 
 		JSONArray statements = (JSONArray) jsonBody.get("statements");
+		System.out.println("11");
 		// Check statements with matching actor
 		// 12 Values as 12 assignments right?
 		int[] assignments = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 		for (Object index : statements) {
+			System.out.println("12");
 			JSONObject jsonIndex = (JSONObject) index;
 			JSONObject actor = (JSONObject) jsonIndex.get("actor");
 			JSONObject account = (JSONObject) actor.get("account");
@@ -847,7 +850,7 @@ public class TmitocarService extends RESTService {
 				JSONObject context = (JSONObject) jsonIndex.get("context");
 				// JSONObject definition = (JSONObject) object.get("definition");
 				JSONObject extension = (JSONObject) context.get("extension");// assignmentNumber
-				if (extension.getAsString("assignmentNumber") != null) {
+				if (extension.get("assignmentNumber") != null) {
 					String assignmentName = extension.getAsString("assignmentNumber");
 					// JSONObject name = (JSONObject) definition.get("name");
 					// String assignmentName = name.getAsString("en-US");
@@ -872,17 +875,24 @@ public class TmitocarService extends RESTService {
 		for (int i = 0; i < 12; i++) {
 			String number;
 			if (i < 9) {
+				System.out.println("16");
 				number = "0" + String.valueOf(i + 1);
+				System.out.println("17");
 			} else {
+				System.out.println("18");
 				number = String.valueOf(i + 1);
+				System.out.println("19");
 			}
 			if (assignments[i] > 0) {
 				credits++;
 			}
+			System.out.println("20");
 			msg += "Schreibaufgabe " + number + ": " + String.valueOf(assignments[i]) + "\n";
 		}
+		System.out.println("21");
 		// How are the credits calculated?
 		msg += "Das hei\u00DFt, du hast bisher *" + credits * 2 + "* Leistunsprozente gesammelt. ";
+		System.out.println("22");
 		System.out.println(msg);
 		jsonBody = new JSONObject();
 		jsonBody.put("text", msg);
