@@ -572,10 +572,11 @@ public class TmitocarService extends RESTService {
 						sendXAPIStatement(xAPI, "leipzig");
 						System.out.println("xAPI statement created");
 					}
-					// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
-					// xAPI.toString() + "*" + jsonBody.getAsString("email"));
-					// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33,
-					// xAPI.toString());
+					JSONObject xAPImobsos = new JSONObject();
+					xAPImobsos.put("statement", xAPI);
+					xAPImobsos.put("token", lrsAuthTokenLeipzig);
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPImobsos.toString());
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33, xAPImobsos.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
 					System.out.println("could not create API statement");
@@ -659,7 +660,8 @@ public class TmitocarService extends RESTService {
 				byte[] pdfByte = Files.readAllBytes(Paths.get(jsonFile.get(jsonBody.getAsString("channel"))));
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
-				response.put("fileType", "json");
+				// response.put("fileType", "json");
+				response.put("fileType", "txt");
 				response.put("fileName", "JsonGraph");
 				response.put("text", jsonBody.getAsString("submissionSucceeded"));
 				jsonFile.remove(jsonBody.getAsString("channel"));
@@ -745,7 +747,10 @@ public class TmitocarService extends RESTService {
 						sendXAPIStatement(xAPI, "dresden");
 						System.out.println("xAPI statement created");
 					}
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPI.toString());
+					JSONObject xAPImobsos = new JSONObject();
+					xAPImobsos.put("statement", xAPI);
+					xAPImobsos.put("token", lrsAuthTokenDresden);
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_4, xAPImobsos.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
 					System.out.println("could not create API statement");
@@ -969,14 +974,17 @@ public class TmitocarService extends RESTService {
 						sendXAPIStatement(xAPI, "dresden");
 						System.out.println("xAPI statement created");
 					} //
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, //
-							xAPI.toString());
+					JSONObject xAPImobsos = new JSONObject();
+					xAPImobsos.put("statement", xAPI);
+					xAPImobsos.put("token", lrsAuthTokenDresden);
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_4, xAPImobsos.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
 					System.out.println("could not create API statement");
 				}
 			}
 		}
+
 		// byte[] pdfByte = getPDF(jsonBody.getAsString("channel"),
 		// this.expertLabel.get(jsonBody.getAsString("channel")))
 		// .getEntity().toString().getBytes();
@@ -1467,9 +1475,10 @@ public class TmitocarService extends RESTService {
 						sendXAPIStatement(xAPI, "dresden");
 						System.out.println("xAPI statement created");
 					}
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
-							xAPI.toString() + "*" + jsonBody.getAsString("email"));
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPI.toString());
+					JSONObject xAPImobsos = new JSONObject();
+					xAPImobsos.put("statement", xAPI);
+					xAPImobsos.put("token", lrsAuthTokenDresden);
+					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_4, xAPImobsos.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
 					System.out.println("could not create API statement");
