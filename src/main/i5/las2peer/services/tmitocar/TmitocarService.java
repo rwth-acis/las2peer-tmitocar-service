@@ -545,7 +545,7 @@ public class TmitocarService extends RESTService {
 		tmitoBody.setType(jsonBody.getAsString("fileType"));
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.getAsString("fileBody"));
-		compareText(jsonBody.getAsString("channel"), expertLabel, "template_ul_Q1_2021.md", tmitoBody);
+		compareText(jsonBody.getAsString("channel"), expertLabel, "template_ul_Q1_2021C.md", tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
 			isActive = this.isActive.get(jsonBody.getAsString("channel"));
@@ -717,7 +717,7 @@ public class TmitocarService extends RESTService {
 		tmitoBody.setType(jsonBody.getAsString("fileType"));
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.getAsString("fileBody"));
-		compareText(jsonBody.getAsString("channel"), expertLabel, "template_ddmz.md", tmitoBody);
+		compareText(jsonBody.getAsString("channel"), expertLabel, "template_ddmz_withoutCompareGraphs.md", tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
 			isActive = this.isActive.get(jsonBody.getAsString("channel"));
@@ -935,7 +935,7 @@ public class TmitocarService extends RESTService {
 		tmitoBody.setType(jsonBody.getAsString("fileType"));
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.getAsString("fileBody"));
-		compareUserTexts(jsonBody.getAsString("channel"), "SelbstVergleich", "template_ddmz_twoTexts.md", tmitoBody);
+		compareUserTexts(jsonBody.getAsString("channel"), "SelbstVergleich", "template_ddmz_twoTexts_withoutCompareGraphs.md", tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
 			isActive = this.isActive.get(jsonBody.getAsString("channel"));
