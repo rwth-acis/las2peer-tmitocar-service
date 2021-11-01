@@ -855,23 +855,25 @@ public class TmitocarService extends RESTService {
 				JSONObject context = (JSONObject) jsonIndex.get("context");
 				// JSONObject definition = (JSONObject) object.get("definition");
 				JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
-				JSONObject fileDetails = (JSONObject) extensions
-						.get("https://tech4comp.de/xapi/context/extensions/filecontent");
-				if (fileDetails.get("assignmentNumber") != null) {
-					String assignmentName = fileDetails.getAsString("assignmentNumber");
-					// JSONObject name = (JSONObject) definition.get("name");
-					// String assignmentName = name.getAsString("en-US");
 					System.out.println("13");
-					try {
-						// int assignmentNumber = Integer.valueOf(assignmentName.split("t")[1]);
-						int assignmentNumber = Integer.valueOf(assignmentName);
 						System.out.println("14");
-						assignments[assignmentNumber - 1]++;
-					} catch (Exception e) {
-						e.printStackTrace();
+				// check if its not a delete statement
+				if (extensions.get("https://tech4comp.de/xapi/context/extensions/filecontent") != null) {
+					JSONObject fileDetails = (JSONObject) extensions
+							.get("https://tech4comp.de/xapi/context/extensions/filecontent");
+					if (fileDetails.get("assignmentNumber") != null) {
+						String assignmentName = fileDetails.getAsString("assignmentNumber");
+						// JSONObject name = (JSONObject) definition.get("name");
+						// String assignmentName = name.getAsString("en-US");
+						try {
+							// int assignmentNumber = Integer.valueOf(assignmentName.split("t")[1]);
+							int assignmentNumber = Integer.valueOf(assignmentName);
+							assignments[assignmentNumber - 1]++;
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+						// System.out.println("Extracted actor is " + name.getAsString("en-US"));
 					}
-					System.out.println("15");
-					// System.out.println("Extracted actor is " + name.getAsString("en-US"));
 				}
 			}
 		}
