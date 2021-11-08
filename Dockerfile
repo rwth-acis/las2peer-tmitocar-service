@@ -32,10 +32,8 @@ RUN dos2unix tmitocar/feedback.sh
 
 RUN chmod +x /src/docker-entrypoint.sh
 RUN dos2unix /src/docker-entrypoint.sh
-RUN dos2unix /src/etc/ant_configuration/service.properties
-
-
-RUN ant jar startscripts
+RUN dos2unix /src/gradle.properties
+RUN chmod +x gradlew && ./gradlew build --exclude-task test
 
 EXPOSE $LAS2PEER_PORT
 ENTRYPOINT ["/src/docker-entrypoint.sh"]
