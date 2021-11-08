@@ -230,7 +230,6 @@ public class TmitocarService extends RESTService {
 	 * Analyze text
 	 * 
 	 * @param user Name of the current user.
-	 * @param body Text to be analyzed
 	 * @return Returns an HTTP response with png content derived from the underlying
 	 *         tmitocar service.
 	 */
@@ -263,7 +262,6 @@ public class TmitocarService extends RESTService {
 	 * Analyze text
 	 * 
 	 * @param user Name of the current user.
-	 * @param body Text to be analyzed
 	 * @return Returns an HTTP response with png content derived from the underlying
 	 *         tmitocar service.
 	 */
@@ -313,8 +311,7 @@ public class TmitocarService extends RESTService {
 	 * Analyze text that was send from bot, updated version to be matchable in bot
 	 * action
 	 * 
-	 * @param user Name of the current user.
-	 * @param body Text to be analyzed
+	 * @param user Name of the current user
 	 * @return Returns an HTTP response with png content derived from the underlying
 	 *         tmitocar service.
 	 */
@@ -686,7 +683,6 @@ public class TmitocarService extends RESTService {
 	 * Analyze text that was send from bot, updated version to be matchable in bot
 	 * action
 	 * 
-	 * @param user Name of the current user.
 	 * @param body Text to be analyzed
 	 * @return Returns an HTTP response with png content derived from the underlying
 	 *         tmitocar service.
