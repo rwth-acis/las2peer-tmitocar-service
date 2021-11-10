@@ -444,7 +444,7 @@ public class TmitocarService extends RESTService {
 						if (wordspec != null && wordspec.length() > 2) {
 							System.out.println("Using wordspec: " + wordspec);
 							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
-									"-l", user + expert, "-o", "json", "-S", "-w", wordspec);
+									"-l", user + expert, "-o", "json", "-S", "-w", wordspec, "-T");
 						} else {
 							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
 									"-l", user + expert, "-o", "json", "-S");
