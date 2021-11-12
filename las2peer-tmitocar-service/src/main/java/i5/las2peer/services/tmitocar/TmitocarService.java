@@ -230,6 +230,7 @@ public class TmitocarService extends RESTService {
 	 * Analyze text
 	 * 
 	 * @param user Name of the current user.
+	 * @param body Text to be analyzed
 	 * @return Returns an HTTP response with png content derived from the underlying
 	 *         tmitocar service.
 	 */
@@ -262,6 +263,7 @@ public class TmitocarService extends RESTService {
 	 * Analyze text
 	 * 
 	 * @param user Name of the current user.
+	 * @param body Text to be analyzed
 	 * @return Returns an HTTP response with png content derived from the underlying
 	 *         tmitocar service.
 	 */
@@ -441,6 +443,7 @@ public class TmitocarService extends RESTService {
 							System.out.println("Using wordspec: " + wordspec);
 							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
 									"-l", user + expert, "-o", "json", "-S", "-w", wordspec);
+									
 						} else {
 							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
 									"-l", user + expert, "-o", "json", "-S");
@@ -451,6 +454,31 @@ public class TmitocarService extends RESTService {
 						Process process = pb.start();
 						try {
 							process.waitFor();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+							isActive.put(user, false);
+							userError.put(user, false);
+							Thread.currentThread().interrupt();
+						}
+
+						ProcessBuilder pbLocalJson;
+						System.out.println("create single model");
+						if (wordspec != null && wordspec.length() > 2) {
+							System.out.println("Using wordspec: " + wordspec);
+							pbLocalJson = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
+									"-l", user + expert + "json", "-o", "json", "-w", wordspec);
+									
+						} else {
+							pbLocalJson = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
+									"-l", user + expert + "json" , "-o", "json");
+						}
+
+						pbLocalJson.inheritIO();
+						pbLocalJson.directory(new File("tmitocar"));
+						Process processJson = pbLocalJson.start();
+						try {
+							processJson.waitFor();
 						} catch (InterruptedException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
@@ -594,8 +622,7 @@ public class TmitocarService extends RESTService {
 				response.put("fileType", "pdf");
 				response.put("fileName", "Feedback");
 				userTexts.remove(jsonBody.getAsString("channel"));
-				jsonFile.put(jsonBody.getAsString("channel"), "tmitocar/comparison_" + expertLabel + "_vs_"
-						+ jsonBody.getAsString("channel") + expertLabel + ".json");
+				jsonFile.put(jsonBody.getAsString("channel"), "tmitocar/texts/" + jsonBody.getAsString("channel") + "/text-modell.json");
 				System.out.println("finished conversion from pdf to base64");
 
 			} catch (Exception e) {
@@ -656,7 +683,7 @@ public class TmitocarService extends RESTService {
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
 				// response.put("fileType", "json");
-				response.put("fileType", "txt");
+				response.put("fileType", "json");
 				response.put("fileName", "JsonGraph");
 				response.put("text", jsonBody.getAsString("submissionSucceeded"));
 				jsonFile.remove(jsonBody.getAsString("channel"));
