@@ -230,7 +230,6 @@ public class TmitocarService extends RESTService {
 	 * Analyze text
 	 * 
 	 * @param user Name of the current user.
-	 * @param body Text to be analyzed
 	 * @return Returns an HTTP response with png content derived from the underlying
 	 *         tmitocar service.
 	 */
@@ -263,7 +262,6 @@ public class TmitocarService extends RESTService {
 	 * Analyze text
 	 * 
 	 * @param user Name of the current user.
-	 * @param body Text to be analyzed
 	 * @return Returns an HTTP response with png content derived from the underlying
 	 *         tmitocar service.
 	 */
