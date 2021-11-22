@@ -87,6 +87,8 @@ public class TmitocarService extends RESTService {
 	private static HashMap<String, String> userCompareText = null;
 	private static HashMap<String, String> userCompareType = null;
 	private static HashMap<String, String> userCompareName = null;
+	private static HashMap<String, String> userEmail = null;
+	private static HashMap<String, String> userFileName = null;
 	private static final L2pLogger logger = L2pLogger.getInstance(TmitocarService.class.getName());
 
 	private final static String AUTH_FILE = "tmitocar/auth.json";
@@ -119,6 +121,14 @@ public class TmitocarService extends RESTService {
 
 		if (jsonFile == null) {
 			jsonFile = new HashMap<String, String>();
+		}
+
+		if (userEmail == null) {
+			userEmail = new HashMap<String, String>();
+		}
+
+		if (userFileName == null) {
+			userFileName = new HashMap<String, String>();
 		}
 
 		File f = new File(AUTH_FILE);
@@ -621,6 +631,8 @@ public class TmitocarService extends RESTService {
 				response.put("fileName", "Feedback");
 				userTexts.remove(jsonBody.getAsString("channel"));
 				jsonFile.put(jsonBody.getAsString("channel"), "tmitocar/texts/" + jsonBody.getAsString("channel") + "/text-modell.json");
+				userEmail.put(jsonBody.getAsString("channel"),jsonBody.getAsString("email"));
+				userFileName.put(jsonBody.getAsString("channel"), jsonBody.getAsString("fileName"));
 				System.out.println("finished conversion from pdf to base64");
 
 			} catch (Exception e) {
@@ -684,8 +696,18 @@ public class TmitocarService extends RESTService {
 				response.put("fileType", "json");
 				response.put("fileName", "JsonGraph");
 				response.put("text", jsonBody.getAsString("submissionSucceeded"));
+				String text = readTxtFile(jsonFile.get(jsonBody.getAsString("channel")));
+				
+
+				JSONObject xAPI = createXAPIStatementForJson(userEmail.get(jsonBody.getAsString("channel")),
+				userFileName.get(jsonBody.getAsString("channel")), userFileName.get(jsonBody.getAsString("channel")).replaceAll("[^0-9]", ""),text);
+					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
+						sendXAPIStatement(xAPI, "leipzig");
+						System.out.println("xAPI statement created");
+					}
+					JSONObject xAPImobsos = new JSONObject();
 				jsonFile.remove(jsonBody.getAsString("channel"));
-				System.out.println("finished conversion from pdf to base64");
+				System.out.println("finished conversion json from pdf to base64");
 				return Response.ok().entity(response).build();
 
 			} catch (Exception e) {
@@ -1700,6 +1722,39 @@ public class TmitocarService extends RESTService {
 		xAPI.put("object", object);
 		xAPI.put("verb", verb);
 		// System.out.println(xAPI);
+		return xAPI;
+	}
+
+	public JSONObject createXAPIStatementForJson(String userMail, String fileName, String assignmentTitle, String text)
+			throws ParseException {
+		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+		JSONObject actor = new JSONObject();
+		actor.put("objectType", "Agent");
+		JSONObject account = new JSONObject();
+
+		account.put("name", encryptThisString(userMail));
+		account.put("homePage", "https://chat.tech4comp.dbis.rwth-aachen.de");
+		actor.put("account", account);
+		JSONObject verb = (JSONObject) p
+				.parse(new String("{'display':{'en-US':'sent_file'},'id':'https://tech4comp.de/xapi/verb/sent_file'}"));
+		JSONObject object = (JSONObject) p
+				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + fileName
+						+ "'}, 'description':{'en-US':'" + fileName
+						+ "'}, 'type':'https://tech4comp.de/xapi/activitytype/file/jsonOutput'},'id':'https://tech4comp.de/biwi5/file/"
+						+ encryptThisString(userMail) + assignmentTitle + "/JSON', 'objectType':'Activity'}"));
+		JSONObject context = (JSONObject) p.parse(new String(
+				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'assignmentNumber':'"
+						+ assignmentTitle + "','jsonOutput':'" + text + "'}}}"));
+		JSONObject xAPI = new JSONObject();
+
+		xAPI.put("authority", p.parse(
+				new String("{'objectType': 'Agent','name': 'New Client', 'mbox': 'mailto:hello@learninglocker.net'}")));
+		xAPI.put("context", context); //
+		// xAPI.put("timestamp", java.time.LocalDateTime.now());
+		xAPI.put("actor", actor);
+		xAPI.put("object", object);
+		xAPI.put("verb", verb);
+		System.out.println(xAPI);
 		return xAPI;
 	}
 
