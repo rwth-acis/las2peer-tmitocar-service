@@ -55,7 +55,7 @@ import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
-
+import net.minidev.json.JSONValue;
 import org.apache.pdfbox.*;
 import org.apache.pdfbox.cos.COSDocument;
 import org.apache.pdfbox.pdfparser.PDFParser;
@@ -598,7 +598,7 @@ public class TmitocarService extends RESTService {
 					System.out.println("try creating xapi statement");
 					JSONObject xAPI = createXAPIStatement(jsonBody.getAsString("email"),
 							jsonBody.getAsString("fileName"), expertLabel.replace("t", ""),
-							userTexts.get(jsonBody.getAsString("channel")));
+							userTexts.get(jsonBody.getAsString("channel")), jsonBody.getAsString("channel"));
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
 						sendXAPIStatement(xAPI, "leipzig");
 						System.out.println("xAPI statement created");
@@ -610,7 +610,7 @@ public class TmitocarService extends RESTService {
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33, xAPImobsos.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
-					System.out.println("could not create API statement");
+					System.out.println("could not create API statement" + e);
 				}
 			}
 		}
@@ -696,16 +696,11 @@ public class TmitocarService extends RESTService {
 				response.put("fileType", "json");
 				response.put("fileName", "JsonGraph");
 				response.put("text", jsonBody.getAsString("submissionSucceeded"));
-				String text = readTxtFile(jsonFile.get(jsonBody.getAsString("channel")));
-				
-
-				JSONObject xAPI = createXAPIStatementForJson(userEmail.get(jsonBody.getAsString("channel")),
-				userFileName.get(jsonBody.getAsString("channel")), userFileName.get(jsonBody.getAsString("channel")).replaceAll("[^0-9]", ""),text);
-					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
-						sendXAPIStatement(xAPI, "leipzig");
-						System.out.println("xAPI statement created");
-					}
-					JSONObject xAPImobsos = new JSONObject();
+			
+					//xAPImobsos.put("statement", xAPI);
+					//xAPImobsos.put("token", lrsAuthTokenLeipzig);
+					//Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPImobsos.toString());
+					//Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33, xAPImobsos.toString());
 				jsonFile.remove(jsonBody.getAsString("channel"));
 				System.out.println("finished conversion json from pdf to base64");
 				return Response.ok().entity(response).build();
@@ -1644,7 +1639,7 @@ public class TmitocarService extends RESTService {
 
 	}
 
-	public JSONObject createXAPIStatement(String userMail, String fileName, String assignmentTitle, String text)
+	public JSONObject createXAPIStatement(String userMail, String fileName, String assignmentTitle, String text, String channel)
 			throws ParseException {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		JSONObject actor = new JSONObject();
@@ -1654,6 +1649,15 @@ public class TmitocarService extends RESTService {
 		account.put("name", encryptThisString(userMail));
 		account.put("homePage", "https://chat.tech4comp.dbis.rwth-aachen.de");
 		actor.put("account", account);
+		String jsonModel = "";
+		try{
+			jsonModel = readTxtFile("tmitocar/texts/" + channel + "/text-modell.json");
+		} catch(Exception e) {
+			System.out.println("Json Model could not be fetched");
+			e.printStackTrace();
+			jsonModel = "No Json Model available";
+		}
+		System.out.println(JSONValue.escape(text.replaceAll("[^\\x00-\\x7F]", "")));
 		JSONObject verb = (JSONObject) p
 				.parse(new String("{'display':{'en-US':'sent_file'},'id':'https://tech4comp.de/xapi/verb/sent_file'}"));
 		JSONObject object = (JSONObject) p
@@ -1663,7 +1667,7 @@ public class TmitocarService extends RESTService {
 						+ encryptThisString(userMail) + assignmentTitle + "', 'objectType':'Activity'}"));
 		JSONObject context = (JSONObject) p.parse(new String(
 				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'assignmentNumber':'"
-						+ assignmentTitle + "','text':'" + text + "'}}}"));
+						+ assignmentTitle + "','text':'" + JSONValue.escape(text.replaceAll("[^\\x00-\\x7F]", "")).toString().replaceAll("\\P{ASCII}", "").replace("'", "\\'")+ "','jsonModel':'" + jsonModel + "'}}}"));
 		JSONObject xAPI = new JSONObject();
 
 		xAPI.put("authority", p.parse(
@@ -1725,38 +1729,6 @@ public class TmitocarService extends RESTService {
 		return xAPI;
 	}
 
-	public JSONObject createXAPIStatementForJson(String userMail, String fileName, String assignmentTitle, String text)
-			throws ParseException {
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		JSONObject actor = new JSONObject();
-		actor.put("objectType", "Agent");
-		JSONObject account = new JSONObject();
-
-		account.put("name", encryptThisString(userMail));
-		account.put("homePage", "https://chat.tech4comp.dbis.rwth-aachen.de");
-		actor.put("account", account);
-		JSONObject verb = (JSONObject) p
-				.parse(new String("{'display':{'en-US':'sent_file'},'id':'https://tech4comp.de/xapi/verb/sent_file'}"));
-		JSONObject object = (JSONObject) p
-				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + fileName
-						+ "'}, 'description':{'en-US':'" + fileName
-						+ "'}, 'type':'https://tech4comp.de/xapi/activitytype/file/jsonOutput'},'id':'https://tech4comp.de/biwi5/file/"
-						+ encryptThisString(userMail) + assignmentTitle + "/JSON', 'objectType':'Activity'}"));
-		JSONObject context = (JSONObject) p.parse(new String(
-				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'assignmentNumber':'"
-						+ assignmentTitle + "','jsonOutput':'" + text + "'}}}"));
-		JSONObject xAPI = new JSONObject();
-
-		xAPI.put("authority", p.parse(
-				new String("{'objectType': 'Agent','name': 'New Client', 'mbox': 'mailto:hello@learninglocker.net'}")));
-		xAPI.put("context", context); //
-		// xAPI.put("timestamp", java.time.LocalDateTime.now());
-		xAPI.put("actor", actor);
-		xAPI.put("object", object);
-		xAPI.put("verb", verb);
-		System.out.println(xAPI);
-		return xAPI;
-	}
 
 	// wrote method in case I dont manage to fix learning locker problem...
 	public void sendXAPIStatement(JSONObject xAPI, String lrs) {
