@@ -1,23 +1,6 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/rwth-acis/las2peer/master/img/logo/bitmap/las2peer-logo-128x128.png" />
-</p>
-<h1 align="center">las2peer-Template-Project</h1>
-<p align="center">
-  <a href="https://travis-ci.org/rwth-acis/las2peer-template-project" alt="Travis Build Status">
-        <img src="https://travis-ci.org/rwth-acis/las2peer-template-project.svg?branch=master" /></a>
-  <a href="https://codecov.io/gh/rwth-acis/las2peer-template-project" alt="Code Coverage">
-        <img src="https://codecov.io/gh/rwth-acis/las2peer-template-project/branch/master/graph/badge.svg" /></a>
-  <a href="https://libraries.io/github/rwth-acis/las2peer-template-project" alt="Dependencies">
-        <img src="https://img.shields.io/librariesio/github/rwth-acis/las2peer-template-project" /></a>
-</p>
+<h1 align="center">las2peer-tmitocar-service</h1>
 
-
-This project can be used as a starting point for your las2peer service development.
-It contains everything needed to start las2peer service development, you do not need to add any dependencies manually.  
-
-For documentation on the las2peer service API, please refer to the [wiki](https://github.com/rwth-acis/las2peer-Template-Project/wiki).
-
-Please follow the instructions of this ReadMe to setup your basic service development environment.  
+This service acts as a wrapper for the [social bot manager service](https://github.com/rwth-acis/las2peer-social-bot-manager-service) to use the [tmitocar tools](https://gitlab.com/Tech4Comp/tmitocar-tools). It allows active bots to forward files from the users to the tmitocar script, which produces an analysis model. With the help of the feedback.sh script of the tmitocar tools, a feedback file is created based on the analysis model and returned to the user.  
 
 ## Preparations
 
