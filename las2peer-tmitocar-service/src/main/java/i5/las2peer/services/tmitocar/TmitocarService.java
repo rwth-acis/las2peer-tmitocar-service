@@ -694,7 +694,7 @@ public class TmitocarService extends RESTService {
 				response.put("fileBody", fileBody);
 				// response.put("fileType", "json");
 				response.put("fileType", "json");
-				response.put("fileName", userFileName.get(jsonBody.getAsString("channel")));
+				response.put("fileName", userFileName.get(jsonBody.getAsString("channel")).replace(".txt","").replace(".pdf","")+"-graph");
 				response.put("text", jsonBody.getAsString("submissionSucceeded"));
 			
 					//xAPImobsos.put("statement", xAPI);
