@@ -13,3 +13,21 @@ las2peer uses **Java 14**.
 * gradle 6.8
 
 
+How to run using Docker
+-------------------
+
+First build the image:
+```bash
+docker build -t tmitocar-service . 
+```
+
+Then you can run the image like this:
+
+```bash
+docker run -e PUBLIC_KEY=*PublicKeyForTmitocarServerAuth* -e PRIVATE_KEY=*PrivateKeyForTmitocarServerAuth* -e LRS_URL=*https://your-lrs-address
+* -p 8080:8080 -p 9011:9011 tmitocar-service
+```
+
+Replace *PublicKeyForTmitocarServerAuth* and *PrivateKeyForTmitocarServerAuth* with the appropriate keys handed by the admin of the server on which the tmitocar script is hosted. 
+
+The REST-API will be available via *http://localhost:8080/tmitocar* and the las2peer node is available via port 9011.
