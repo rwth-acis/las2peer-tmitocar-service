@@ -695,7 +695,7 @@ public class TmitocarService extends RESTService {
 				// response.put("fileType", "json");
 				response.put("fileType", "json");
 				response.put("fileName", userFileName.get(jsonBody.getAsString("channel")).replace(".txt","").replace(".pdf","")+"-graph");
-				if(!jsonBody.getAsString("submissionSucceeded") == null && !jsonBody.getAsString("submissionSucceeded").equals(""))
+				if(jsonBody.getAsString("submissionSucceeded") != null && !jsonBody.getAsString("submissionSucceeded").equals(""))
 				{
 					response.put("text", jsonBody.getAsString("submissionSucceeded"));
 				}
