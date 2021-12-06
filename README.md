@@ -12,6 +12,10 @@ las2peer uses **Java 14**.
 
 * gradle 6.8
 
+### Important Repositories: 
+
+- Social-Bot-Manager-Service: https://github.com/rwth-acis/las2peer-Social-Bot-Manager-Service
+- Tmitocar tools: https://github.com/rwth-acis/las2peer-tmitocar-service
 
 How to run using Docker
 -------------------
