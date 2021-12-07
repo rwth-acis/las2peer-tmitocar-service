@@ -1,18 +1,18 @@
-FROM adoptopenjdk/openjdk14:x86_64-debian-jdk-14.0.2_12
+FROM openjdk:17-jdk-alpine
 #FROM openjdk:8-jdk
 ENV LAS2PEER_PORT=9011
 
 # tmitocar dependencies (jq, ruby, coreutils)
-RUN apt-get update && apt-get install -y default-mysql-client ant jq build-essential libffi-dev ruby ruby-bundler dos2unix coreutils curl tzdata git gcc cmake libpng-dev graphviz wkhtmltopdf pandoc rsync poppler-utils
+RUN apk add --update mysql-client bash apache-ant jq build-base libffi-dev ruby ruby-bundler dos2unix coreutils curl tzdata git gcc cmake libpng-dev graphviz wkhtmltopdf rsync poppler-utils
 
 RUN git clone --recursive https://github.com/kornelski/pngquant.git
 RUN cd pngquant && ./configure && make install
-RUN apt-get update && apt-get install -y texlive-xetex
+RUN apk add --update texlive-xetex
 RUN gem install docsplit 
 ENV TZ=Europe/Berlin
-RUN apt-get install -y file
+RUN apk add file
 
-RUN apt-get install -y vim
+RUN apk add vim
 
 COPY . /src
 WORKDIR /src
@@ -33,6 +33,7 @@ RUN dos2unix tmitocar/feedback.sh
 RUN chmod +x /src/docker-entrypoint.sh
 RUN dos2unix /src/docker-entrypoint.sh
 RUN dos2unix /src/gradle.properties
+RUN dos2unix gradlew
 RUN chmod +x gradlew && ./gradlew build --exclude-task test
 
 EXPOSE $LAS2PEER_PORT
