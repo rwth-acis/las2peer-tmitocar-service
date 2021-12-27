@@ -3,6 +3,7 @@ FROM openjdk:17-jdk-alpine
 ENV LAS2PEER_PORT=9011
 
 # tmitocar dependencies (jq, ruby, coreutils)
+
 RUN apk add --update mysql-client bash apache-ant jq build-base libffi-dev ruby ruby-bundler dos2unix coreutils curl tzdata git gcc cmake libpng-dev graphviz wkhtmltopdf rsync poppler-utils
 
 RUN git clone --recursive https://github.com/kornelski/pngquant.git
@@ -17,9 +18,11 @@ RUN apk add vim
 COPY . /src
 WORKDIR /src
 
-#RUN wget https://github.com/jgm/pandoc/releases/download/2.5/pandoc-2.5-linux.tar.gz
-#RUN tar -zxf pandoc-2.5-linux.tar.gz
-#RUN cp -R pandoc-2.5/bin/* /usr/bin/
+RUN wget https://github.com/jgm/pandoc/releases/download/2.2.1/pandoc-2.2.1-linux.tar.gz
+RUN tar -zxf pandoc-2.2.1-linux.tar.gz
+RUN cp -R pandoc-2.2.1/bin/* /usr/bin/
+#RUN cp -R pandoc-2.5/bin/* /tmitocar/
+ENV PATH="pandoc-2.2.1/bin:${PATH}"
 # && tar -zxf pandoc-2.9.2.1-linux-amd64.tar.gz 
 
 RUN git clone https://gitlab.com/Tech4Comp/tmitocar-tools.git/ tmitocar
