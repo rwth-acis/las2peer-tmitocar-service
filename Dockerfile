@@ -1,8 +1,5 @@
-FROM adoptopenjdk/openjdk14:x86_64-debian-jdk-14.0.2_12
-#FROM openjdk:8-jdk
-ENV LAS2PEER_PORT=9011
-
 # tmitocar dependencies (jq, ruby, coreutils)
+FROM openjdk:17.0.1-jdk-buster
 RUN apt-get update && apt-get install -y default-mysql-client ant jq build-essential libffi-dev ruby ruby-bundler dos2unix coreutils curl tzdata git gcc cmake libpng-dev graphviz wkhtmltopdf pandoc rsync poppler-utils
 
 RUN git clone --recursive https://github.com/kornelski/pngquant.git
@@ -33,6 +30,7 @@ RUN dos2unix tmitocar/feedback.sh
 RUN chmod +x /src/docker-entrypoint.sh
 RUN dos2unix /src/docker-entrypoint.sh
 RUN dos2unix /src/gradle.properties
+RUN dos2unix gradlew
 RUN chmod +x gradlew && ./gradlew build --exclude-task test
 
 EXPOSE $LAS2PEER_PORT
