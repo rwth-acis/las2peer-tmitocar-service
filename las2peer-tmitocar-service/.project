@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>las2peer-tmitocar-service</name>
-	<comment></comment>
+	<name>las2peer-tmitocar-service-las2peer-tmitocar-service</name>
+	<comment>Project las2peer-tmitocar-service-las2peer-tmitocar-service created by Buildship.</comment>
 	<projects>
 	</projects>
 	<buildSpec>
 		<buildCommand>
-			<name>org.eclipse.jdt.core.javabuilder</name>
+			<name>org.eclipse.buildship.core.gradleprojectbuilder</name>
 			<arguments>
 			</arguments>
 		</buildCommand>
 	</buildSpec>
 	<natures>
-		<nature>org.eclipse.jdt.core.javanature</nature>
+		<nature>org.eclipse.buildship.core.gradleprojectnature</nature>
 	</natures>
 	<filteredResources>
 		<filter>
-			<id>1636657669747</id>
+			<id>1636379772470</id>
 			<name></name>
 			<type>30</type>
 			<matcher>

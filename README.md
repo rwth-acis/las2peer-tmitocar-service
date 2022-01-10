@@ -1,63 +1,49 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/rwth-acis/las2peer/master/img/logo/bitmap/las2peer-logo-128x128.png" />
-</p>
-<h1 align="center">las2peer-Template-Project</h1>
-<p align="center">
-  <a href="https://travis-ci.org/rwth-acis/las2peer-template-project" alt="Travis Build Status">
-        <img src="https://travis-ci.org/rwth-acis/las2peer-template-project.svg?branch=master" /></a>
-  <a href="https://codecov.io/gh/rwth-acis/las2peer-template-project" alt="Code Coverage">
-        <img src="https://codecov.io/gh/rwth-acis/las2peer-template-project/branch/master/graph/badge.svg" /></a>
-  <a href="https://libraries.io/github/rwth-acis/las2peer-template-project" alt="Dependencies">
-        <img src="https://img.shields.io/librariesio/github/rwth-acis/las2peer-template-project" /></a>
-</p>
+<h1 align="center">las2peer-tmitocar-service</h1>
 
-
-This project can be used as a starting point for your las2peer service development.
-It contains everything needed to start las2peer service development, you do not need to add any dependencies manually.  
-
-For documentation on the las2peer service API, please refer to the [wiki](https://github.com/rwth-acis/las2peer-Template-Project/wiki).
-
-Please follow the instructions of this ReadMe to setup your basic service development environment.  
+This service acts as a wrapper for the [social bot manager service](https://github.com/rwth-acis/las2peer-social-bot-manager-service) to use the [tmitocar tools](https://gitlab.com/Tech4Comp/tmitocar-tools). It allows active bots to forward files from the users to the tmitocar script, which produces an analysis model. With the help of the feedback.sh script of the tmitocar tools, a feedback file is created based on the analysis model and returned to the user.  
 
 ## Preparations
 
 ### Java
 
-las2peer uses **Java 8**.
-
-If you use an Oracle Java version, please make sure you have **Java 8u162** or later installed, so that the Java Cryptography Extension (JCE) is enabled.
-Otherwise, you have to enable it manually.
-Each las2peer node performs an encryption self-test on startup.
+las2peer uses **Java 14**.
 
 ### Build Dependencies
 
-* Apache ant
+* gradle 6.8
 
+### Important Repositories: 
 
-## Quick Setup of your Service Development Environment
+- Social-Bot-Manager-Service: https://github.com/rwth-acis/las2peer-Social-Bot-Manager-Service
+- Tmitocar tools: https://github.com/rwth-acis/las2peer-tmitocar-service
 
-*If you never used las2peer before, it is recommended that you first visit the
-[Step by Step - First Service](https://github.com/rwth-acis/las2peer-Template-Project/wiki/Step-By-Step:-First-Service)
-tutorial for a more detailed guidance on how to use this template.*  
+How to run using Docker
+-------------------
 
-Follow these five steps to setup your project:  
-1. If you use Eclipse, import this project or just create a new project in the same folder.  
-2. Run "ant get_deps" once to pull all dependencies (You can skip this but Eclipse will complain about missing libraries until you build the first time).  
-3. The service source code can be found at `i5.las2peer.services.servicePackage.TemplateService`.  
-(3.5 Optional: Change [etc/ant_configuration/service.properties](etc/ant_configuration/service.properties) and [etc/ant_configuration/user.properties](etc/ant_configuration/user.properties)
-according to the service you want to build. Rename your build directory structure according to the names you gave in 2.,
-you have to also correct the package declaration and the 'testTemplateService' constant in your source code files.)  
-4. Compile your service with `ant jar` or just `ant` (default target). This will also build the service jar.  
-5. Generate documentation, run your JUnit tests and generate service and user agent with `ant all` (If this did not run check that the policy files are working correctly).  
+First build the image:
+```bash
+docker build -t tmitocar-service . 
+```
 
-The jar file with your service will be in "export/" and "service/" and the generated agent XML files in "etc/startup/".
-You can find the JUnit reports in the folder "export/test_reports/".  
+Then you can run the image like this:
 
-If you decide to change the dependencies of your project, please make sure to run "ant clean_all" to remove all previously
-added libraries first.  
+```bash
+docker run -e PUBLIC_KEY=*PublicKeyForTmitocarServerAuth* -e PRIVATE_KEY=*PrivateKeyForTmitocarServerAuth* -e LRS_URL=*https://your-lrs-address
+* -p 8080:8080 -p 9011:9011 tmitocar-service
+```
 
+Replace *PublicKeyForTmitocarServerAuth* and *PrivateKeyForTmitocarServerAuth* with the appropriate keys handed by the admin of the server on which the tmitocar script is hosted. 
 
-## Next Steps
+The REST-API will be available via *http://localhost:8080/tmitocar* and the las2peer node is available via port 9011.
 
-Please visit the [Wiki](https://github.com/rwth-acis/las2peer-Template-Project/wiki/) of this project.
-There you will find guides and tutorials, information on las2peer concepts and further interesting las2peer knowledge.  
+## Bot Functions
+
+| Path | Function name | Description | Parameters | Returns |
+|-----|-----|-------------|---------|---------------|
+| /analyzeText | compareTextFromBot | Compares user texts of assignments 1 to 12 to experts text using tmitocar tools. Returns feedback pdf file based on analysis. If LRS_AUTH_TOKEN_LEIPZIG is given, additionally stores information in LRS. |  submissionSucceeded: Returned text in case of success <br /> submissionFailed: Returned text in case of error <br />  lrs: Bool whether LRS should be used <br /> Note: Function only works if triggering message contains a file (Use "ifFile" field of "Incoming Message" element)| Feedback file on success, otherwise error message |
+| /sendJson | sendJson | Sends json graph file based on single text analysis. To be used immediately after "/analyzeText" was called. | submissionSucceeded: Returned text in case of success <br /> submissionFailed: Returned text in case of error <br /> Note: Function only works if immediately triggered after call of "/analyzeText" | Json file of text model based on analysis. |
+| /getCredits | getCredits | Returns the current status of handed in assignments for tasks 1-12 based on data found in LRS. Also gives the current percentage of reached bonus points. | / | Message of the form: <br /> Schreibaufgabe 01: X ... Schreibaufgabe 12: Y <br />Das heißt, du hast bisher Z Leistunsprozente gesammelt. |
+| /analyzeTextTUDresden | compareTextFromBotDresden | Compares user text of given task to expert text (Medienkompetenz) using tmitocar tools. Returns feedback pdf file based on analysis. If LRS_AUTH_TOKEN_DRESDEN is given, additionally stores information in LRS. | - submissionSucceeded: Returned text in case of success <br />- submissionFailed: Returned text in case of error <br /> - lrs: Bool whether LRS should be used <br /> Note: Function only works if triggering message contains a file (Use "ifFile" field of "Incoming Message" element) | Feedback file on success, otherwise error message |
+| /analyzeSingleText | analyzeSingleText | Analyses single text from user and create feedback file based on analysis results. If LRS_AUTH_TOKEN_DRESDEN is given, additionally stores information in LRS.| submissionSucceeded: Returned text in case of success <br /> submissionFailed: Returned text in case of error <br />  lrs: Bool whether LRS should be used <br /> Note: Function only works if triggering message contains a file (Use "ifFile" field of "Incoming Message" element) | Feedback file on success, otherwise error message|
+| /storeCompareText | storeCompareText | Used when wanting to compare two texts from the user. Will create feedback file based on analysis of comparison from two user texts. Is the first of two function calls needed for the comparison. Is used to first store the text, while waiting for the second text. The second function is "compareUserTexts" | submissionSucceeded: Returned text in case of success <br /> submissionFailed: Returned text in case of error <br />  Note: Function only works if triggering message contains a file (Use "ifFile" field of "Incoming Message" element) | Message of storing success/failure |
+| /compareUserTexts | compareUserTexts | Second function call when wanting to compare two user texts. Needs to be called after "storeCompareText". WIll use tmitocar script to conduct analysis and create feedback file which is then returned.  If LRS_AUTH_TOKEN_DRESDEN is given, additionally stores information in LRS. | submissionSucceeded: Returned text in case of success <br /> submissionFailed: Returned text in case of error <br />  lrs: Bool whether LRS should be used <br /> Note: Function only works if triggering message contains a file (Use "ifFile" field of "Incoming Message" element) |  Feedback file on success, otherwise error message|

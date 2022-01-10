@@ -9,9 +9,9 @@ fi
 NODE_ID_SEED=${NODE_ID_SEED:-$RANDOM}
 
 # set some helpful variables
-export SERVICE_VERSION=$(awk -F "=" '/service.version/ {print $2}' etc/ant_configuration/service.properties)
-export SERVICE_NAME=$(awk -F "=" '/service.name/ {print $2}' etc/ant_configuration/service.properties)
-export SERVICE_CLASS=$(awk -F "=" '/service.class/ {print $2}' etc/ant_configuration/service.properties)
+export SERVICE_VERSION=$(awk -F "=" '/service.version/ {print $2}' gradle.properties)
+export SERVICE_NAME=$(awk -F "=" '/service.name/ {print $2}' gradle.properties)
+export SERVICE_CLASS=$(awk -F "=" '/service.class/ {print $2}' gradle.properties)
 export SERVICE=${SERVICE_NAME}.${SERVICE_CLASS}@${SERVICE_VERSION}
 export SERVICE_PROPERTY_FILE='etc/i5.las2peer.services.tmitocar.TmitocarService.properties'
 
@@ -45,10 +45,13 @@ function set_in_service_config {
 
 set_in_service_config privateKey ${PRIVATE_KEY}
 set_in_service_config publicKey ${PUBLIC_KEY}
+set_in_service_config lrsURL ${LRS_URL}
+set_in_service_config lrsAuthTokenLeipzig ${LRS_AUTH_TOKEN_LEIPZIG}
+set_in_service_config lrsAuthTokenDresden ${LRS_AUTH_TOKEN_DRESDEN}
 
 # prevent glob expansion in lib/*
 set -f
-LAUNCH_COMMAND='java -cp lib/* i5.las2peer.tools.L2pNodeLauncher -s service -p '"${LAS2PEER_PORT} ${SERVICE_EXTRA_ARGS}"
+LAUNCH_COMMAND='java -cp lib/* --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED i5.las2peer.tools.L2pNodeLauncher -s service -p '"${LAS2PEER_PORT} ${SERVICE_EXTRA_ARGS}"
 if [[ ! -z "${BOOTSTRAP}" ]]; then
     LAUNCH_COMMAND="${LAUNCH_COMMAND} -b ${BOOTSTRAP}"
 fi
