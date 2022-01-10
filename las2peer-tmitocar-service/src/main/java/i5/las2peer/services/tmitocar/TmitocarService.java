@@ -336,8 +336,9 @@ public class TmitocarService extends RESTService {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
 		boolean isActive = true;
+		String channel = jsonBody.get("channel").toString();
 		while (isActive) {
-			isActive = this.isActive.get(jsonBody.getAsString("channel"));
+			isActive = this.isActive.get(channel);
 			// isActive = Boolean.parseBoolean(result.getResponse());
 			System.out.println(isActive);
 			try {
@@ -347,7 +348,7 @@ public class TmitocarService extends RESTService {
 				e.printStackTrace();
 			}
 		}
-		byte[] pdfByte = getPDF(jsonBody.getAsString("channel"), expertLabel.get(jsonBody.getAsString("channel")))
+		byte[] pdfByte = getPDF(channel, expertLabel.get(channel))
 				.getEntity().toString().getBytes();
 		String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 		jsonBody = new JSONObject();
@@ -569,17 +570,18 @@ public class TmitocarService extends RESTService {
 		JSONObject jsonBody = new JSONObject();
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
-		int taskNumber = Integer.parseInt(jsonBody.getAsString("fileName").replaceAll("[^0-9]", ""));
+		String channel = jsonBody.get("channel").toString();
+		int taskNumber = Integer.parseInt(jsonBody.get("fileName").toString().replaceAll("[^0-9]", ""));
 		String expertLabel = "t" + String.valueOf(taskNumber);
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(expertLabel);
-		tmitoBody.setType(jsonBody.getAsString("fileType"));
+		tmitoBody.setType(jsonBody.get("fileType").toString());
 		tmitoBody.setWordSpec("1200");
-		tmitoBody.setText(jsonBody.getAsString("fileBody"));
-		compareText(jsonBody.getAsString("channel"), expertLabel, "template_ul_Q1_2021C.md", tmitoBody);
+		tmitoBody.setText(jsonBody.get("fileBody").toString());
+		compareText(channel, expertLabel, "template_ul_Q1_2021C.md", tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
-			isActive = this.isActive.get(jsonBody.getAsString("channel"));
+			isActive = this.isActive.get(channel);
 			// isActive = Boolean.parseBoolean(result.getResponse());
 			System.out.println(isActive);
 			try {
@@ -590,15 +592,15 @@ public class TmitocarService extends RESTService {
 			}
 		}
 		System.out.println("try creating xapi statement");
-		if (userError.get(jsonBody.getAsString("channel")) == null) {
-			if (userTexts.get(jsonBody.getAsString("channel")).length() < 20) {
-				userError.put(jsonBody.getAsString("channel"), false);
+		if (userError.get(channel) == null) {
+			if (userTexts.get(channel).length() < 20) {
+				userError.put(channel, false);
 			} else {
 				try {
 					System.out.println("try creating xapi statement");
-					JSONObject xAPI = createXAPIStatement(jsonBody.getAsString("email"),
-							jsonBody.getAsString("fileName"), expertLabel.replace("t", ""),
-							userTexts.get(jsonBody.getAsString("channel")), jsonBody.getAsString("channel"));
+					JSONObject xAPI = createXAPIStatement(jsonBody.get("email").toString(),
+							jsonBody.get("fileName").toString(), expertLabel.replace("t", ""),
+							userTexts.get(channel), channel);
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
 						sendXAPIStatement(xAPI, "leipzig");
 						System.out.println("xAPI statement created");
@@ -614,25 +616,25 @@ public class TmitocarService extends RESTService {
 				}
 			}
 		}
-		// byte[] pdfByte = getPDF(jsonBody.getAsString("channel"),
-		// this.expertLabel.get(jsonBody.getAsString("channel")))
+		// byte[] pdfByte = getPDF(channel,
+		// this.expertLabel.get(channel))
 		// .getEntity().toString().getBytes();
 		// System.out.println(pdfByte);
 
 		JSONObject response = new JSONObject();
-		if (userTexts.get(jsonBody.getAsString("channel")) != null) {
+		if (userTexts.get(jsonBody.get("channel")) != null) {
 			System.out.println("converging pdf to base64");
 			try {
 				byte[] pdfByte = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
-						+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+						+ channel + expertLabel + ".pdf"));
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
 				response.put("fileType", "pdf");
 				response.put("fileName", "Feedback");
-				userTexts.remove(jsonBody.getAsString("channel"));
-				jsonFile.put(jsonBody.getAsString("channel"), "tmitocar/texts/" + jsonBody.getAsString("channel") + "/text-modell.json");
-				userEmail.put(jsonBody.getAsString("channel"),jsonBody.getAsString("email"));
-				userFileName.put(jsonBody.getAsString("channel"), jsonBody.getAsString("fileName"));
+				userTexts.remove(channel);
+				jsonFile.put(channel, "tmitocar/texts/" + channel + "/text-modell.json");
+				userEmail.put(channel,jsonBody.get("email").toString());
+				userFileName.put(channel, jsonBody.get("fileName").toString());
 				System.out.println("finished conversion from pdf to base64");
 
 			} catch (Exception e) {
@@ -641,21 +643,21 @@ public class TmitocarService extends RESTService {
 			}
 		}
 		String errorMessage = "";
-		if ((userError.get(jsonBody.getAsString("channel")) != null && !userError.get(jsonBody.getAsString("channel")))
-				|| response.getAsString("fileBody") == null) {
+		if ((userError.get(channel) != null && !userError.get(channel))
+				|| response.get("fileBody") == null) {
 			if (jsonBody.get("submissionFailed") != null) {
-				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionFailed"));
+				errorMessage = replaceUmlaute(jsonBody.get("submissionFailed").toString());
 			} else {
 				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
 			}
 			System.out.println("Removing User from Errorlist1");
-			userError.remove(jsonBody.getAsString("channel"));
+			userError.remove(channel);
 		} else {
 			if (jsonBody.get("submissionSucceeded") != null)
-				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionSucceeded"));
+				errorMessage = replaceUmlaute(jsonBody.get("submissionSucceeded").toString());
 			System.out.println("Removing User from Errorlist2");
-			if (userError.get(jsonBody.getAsString("channel")) != null) {
-				userError.remove(jsonBody.getAsString("channel"));
+			if (userError.get(channel) != null) {
+				userError.remove(channel);
 			}
 		}
 		System.out.println("response is " + response);
@@ -681,29 +683,30 @@ public class TmitocarService extends RESTService {
 		JSONObject jsonBody = new JSONObject();
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
-		// byte[] pdfByte = getPDF(jsonBody.getAsString("channel"),
-		// this.expertLabel.get(jsonBody.getAsString("channel")))
+		String channel = jsonBody.get("channel").toString(); 
+		// byte[] pdfByte = getPDF(channel,
+		// this.expertLabel.get(channel))
 		// .getEntity().toString().getBytes();
 		// System.out.println(pdfByte);
 
 		JSONObject response = new JSONObject();
-		if (jsonFile.containsKey(jsonBody.getAsString("channel"))) {
+		if (jsonFile.containsKey(channel)) {
 			try {
-				byte[] pdfByte = Files.readAllBytes(Paths.get(jsonFile.get(jsonBody.getAsString("channel"))));
+				byte[] pdfByte = Files.readAllBytes(Paths.get(jsonFile.get(channel)));
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
 				// response.put("fileType", "json");
 				response.put("fileType", "json");
-				response.put("fileName", userFileName.get(jsonBody.getAsString("channel")).replace(".txt","").replace(".pdf","")+"-graph");
-				if(jsonBody.getAsString("submissionSucceeded") != null && !jsonBody.getAsString("submissionSucceeded").equals(""))
+				response.put("fileName", userFileName.get(channel).replace(".txt","").replace(".pdf","")+"-graph");
+				if(jsonBody.get("submissionSucceeded") != null && !jsonBody.get("submissionSucceeded").toString().equals(""))
 				{
-					response.put("text", jsonBody.getAsString("submissionSucceeded"));
+					response.put("text", jsonBody.get("submissionSucceeded").toString());
 				}
 					//xAPImobsos.put("statement", xAPI);
 					//xAPImobsos.put("token", lrsAuthTokenLeipzig);
 					//Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPImobsos.toString());
 					//Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33, xAPImobsos.toString());
-				jsonFile.remove(jsonBody.getAsString("channel"));
+				jsonFile.remove(channel);
 				System.out.println("finished conversion json from pdf to base64");
 				return Response.ok().entity(response).build();
 
@@ -712,7 +715,7 @@ public class TmitocarService extends RESTService {
 				System.out.println("failed conversion from pdf to base64");
 			}
 		} else {
-			response.put("text", jsonBody.getAsString("submissionFailed"));
+			response.put("text", jsonBody.get("submissionFailed").toString());
 			return Response.ok().entity(response).build();
 		}
 		String errorMessage = "";
@@ -742,23 +745,24 @@ public class TmitocarService extends RESTService {
 		jsonBody = (JSONObject) p.parse(body);
 		String errorMessage = "";
 		String expertLabel = "Mustertext_WS";
+		String channel = jsonBody.get("channel").toString();
 		try {
-			errorMessage = jsonBody.getAsString("submissionFailed");
+			errorMessage = jsonBody.get("submissionFailed").toString();
 		} catch (NullPointerException e) {
 			errorMessage = "Fehler";
 		}
 
-		System.out.println(jsonBody.getAsString("fileName"));
+		System.out.println(jsonBody.get("fileName").toString());
 
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic("Medienkompetenz");
-		tmitoBody.setType(jsonBody.getAsString("fileType"));
+		tmitoBody.setType(jsonBody.get("fileType").toString());
 		tmitoBody.setWordSpec("1200");
-		tmitoBody.setText(jsonBody.getAsString("fileBody"));
-		compareText(jsonBody.getAsString("channel"), expertLabel, "template_ddmz_withoutCompareGraphs.md", tmitoBody);
+		tmitoBody.setText(jsonBody.get("fileBody").toString());
+		compareText(channel, expertLabel, "template_ddmz_withoutCompareGraphs.md", tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
-			isActive = this.isActive.get(jsonBody.getAsString("channel"));
+			isActive = this.isActive.get(channel);
 			// isActive = Boolean.parseBoolean(result.getResponse());
 			System.out.println(isActive);
 			try {
@@ -769,17 +773,17 @@ public class TmitocarService extends RESTService {
 			}
 		}
 		System.out.println("try creating xapi statement");
-		if (userError.get(jsonBody.getAsString("channel")) == null) {
-			if (userTexts.get(jsonBody.getAsString("channel")).length() < 20) {
-				userError.put(jsonBody.getAsString("channel"), false);
+		if (userError.get(channel) == null) {
+			if (userTexts.get(channel).length() < 20) {
+				userError.put(channel, false);
 			} else {
 				try {
 					System.out.println("try creating xapi statement");
 					byte[] pdfByteAPI = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
-							+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+							+ channel + expertLabel + ".pdf"));
 					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
-					JSONObject xAPI = createXAPIStatement2(jsonBody.getAsString("email"),
-							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
+					JSONObject xAPI = createXAPIStatement2(jsonBody.get("email").toString(),
+							jsonBody.get("fileName").toString(), userTexts.get(channel),
 							fileBodyAPI, "compareToSample");
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
 						sendXAPIStatement(xAPI, "dresden");
@@ -795,21 +799,21 @@ public class TmitocarService extends RESTService {
 				}
 			}
 		}
-		// byte[] pdfByte = getPDF(jsonBody.getAsString("channel"),
-		// this.expertLabel.get(jsonBody.getAsString("channel")))
+		// byte[] pdfByte = getPDF(channel,
+		// this.expertLabel.get(channel))
 		// .getEntity().toString().getBytes();
 		// System.out.println(pdfByte);
 		JSONObject response = new JSONObject();
-		if (userTexts.get(jsonBody.getAsString("channel")) != null) {
+		if (userTexts.get(jsonBody.get("channel").toString()) != null) {
 			System.out.println("converging pdf to base64");
 			try {
 				byte[] pdfByte = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
-						+ jsonBody.getAsString("channel") + expertLabel + ".pdf"));
+						+ jsonBody.get("channel").toString() + expertLabel + ".pdf"));
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
 				response.put("fileType", "pdf");
 				response.put("fileName", "Feedback");
-				userTexts.remove(jsonBody.getAsString("channel"));
+				userTexts.remove(channel);
 				System.out.println("finished conversion from pdf to base64");
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -817,21 +821,21 @@ public class TmitocarService extends RESTService {
 			}
 		}
 		errorMessage = "";
-		if ((userError.get(jsonBody.getAsString("channel")) != null && !userError.get(jsonBody.getAsString("channel")))
-				|| response.getAsString("fileBody") == null) {
+		if ((userError.get(channel) != null && !userError.get(channel))
+				|| response.get("fileBody").toString() == null) {
 			if (jsonBody.get("submissionFailed") != null) {
-				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionFailed"));
+				errorMessage = replaceUmlaute(jsonBody.get("submissionFailed").toString());
 			} else {
 				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
 			}
 			System.out.println("Removing User from Errorlist1");
-			userError.remove(jsonBody.getAsString("channel"));
+			userError.remove(channel);
 		} else {
 			if (jsonBody.get("submissionSucceeded") != null)
-				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionSucceeded"));
+				errorMessage = replaceUmlaute(jsonBody.get("submissionSucceeded").toString());
 			System.out.println("Removing User from Errorlist2");
-			if (userError.get(jsonBody.getAsString("channel")) != null) {
-				userError.remove(jsonBody.getAsString("channel"));
+			if (userError.get(channel) != null) {
+				userError.remove(channel);
 			}
 		}
 		System.out.println("response is " + response);
@@ -851,7 +855,7 @@ public class TmitocarService extends RESTService {
 		JSONObject jsonBody = new JSONObject();
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
-		String user = jsonBody.getAsString("email");
+		String user = jsonBody.get("email").toString();
 		String hashUser = encryptThisString(user);
 		// Copy pasted from LL service
 		// Fetch ALL statements
@@ -887,8 +891,8 @@ public class TmitocarService extends RESTService {
 			JSONObject jsonIndex = (JSONObject) index;
 			JSONObject actor = (JSONObject) jsonIndex.get("actor");
 			JSONObject account = (JSONObject) actor.get("account");
-			if (account.getAsString("name").equals(user)
-					|| account.getAsString("name").equals(encryptThisString(user))) {
+			if (account.get("name").toString().equals(user)
+					|| account.get("name").toString().equals(encryptThisString(user))) {
 				// JSONObject object = (JSONObject) jsonIndex.get("object");
 				JSONObject context = (JSONObject) jsonIndex.get("context");
 				// JSONObject definition = (JSONObject) object.get("definition");
@@ -900,7 +904,7 @@ public class TmitocarService extends RESTService {
 					JSONObject fileDetails = (JSONObject) extensions
 							.get("https://tech4comp.de/xapi/context/extensions/filecontent");
 					if (fileDetails.get("assignmentNumber") != null) {
-						String assignmentName = fileDetails.getAsString("assignmentNumber");
+						String assignmentName = fileDetails.get("assignmentNumber").toString();
 						// JSONObject name = (JSONObject) definition.get("name");
 						// String assignmentName = name.getAsString("en-US");
 						try {
@@ -956,15 +960,16 @@ public class TmitocarService extends RESTService {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
 		String errorMessage = "";
+		String channel = jsonBody.get("channel").toString();
 		try {
-			errorMessage = jsonBody.getAsString("submissionFailed");
+			errorMessage = jsonBody.get("submissionFailed").toString();
 		} catch (NullPointerException e) {
 			errorMessage = "Fehler";
 		}
 
-		System.out.println(jsonBody.getAsString("fileName"));
+		System.out.println(jsonBody.get("fileName").toString());
 		// check if name has correct form
-		if (userCompareText.get(jsonBody.getAsString("channel")) == null) {
+		if (userCompareText.get(channel) == null) {
 			jsonBody = new JSONObject();
 			jsonBody.put("text", errorMessage);
 			return Response.ok().entity(jsonBody).build();
@@ -972,13 +977,13 @@ public class TmitocarService extends RESTService {
 
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic("Medienkompetenz");
-		tmitoBody.setType(jsonBody.getAsString("fileType"));
+		tmitoBody.setType(jsonBody.get("fileType").toString());
 		tmitoBody.setWordSpec("1200");
-		tmitoBody.setText(jsonBody.getAsString("fileBody"));
-		compareUserTexts(jsonBody.getAsString("channel"), "SelbstVergleich", "template_ddmz_twoTexts_withoutCompareGraphs.md", tmitoBody);
+		tmitoBody.setText(jsonBody.get("fileBody").toString());
+		compareUserTexts(channel, "SelbstVergleich", "template_ddmz_twoTexts_withoutCompareGraphs.md", tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
-			isActive = this.isActive.get(jsonBody.getAsString("channel"));
+			isActive = this.isActive.get(channel);
 			// isActive = Boolean.parseBoolean(result.getResponse());
 			System.out.println(isActive);
 			try {
@@ -990,26 +995,26 @@ public class TmitocarService extends RESTService {
 		}
 		System.out.println("try creating xapi statement");
 
-		if (userError.get(jsonBody.getAsString("channel")) == null) {
-			if (userTexts.get(jsonBody.getAsString("channel")).length() < 20) {
-				userError.put(jsonBody.getAsString("channel"), false);
+		if (userError.get(channel) == null) {
+			if (userTexts.get(channel).length() < 20) {
+				userError.put(channel, false);
 			} else {
 				try {
 					System.out.println("try creating xapi statement");
 					String type = "";
-					if (userCompareType.get(jsonBody.getAsString("channel")).toLowerCase().contains("pdf")) {
+					if (userCompareType.get(channel).toLowerCase().contains("pdf")) {
 						type = "pdf";
 					} else {
 						type = "txt";
 					}
 					System.out.println(type);
 					byte[] pdfByteAPI = Files.readAllBytes(
-							Paths.get("tmitocar/comparison_" + jsonBody.getAsString("channel") + "VergleichText." + type
-									+ "_vs_" + jsonBody.getAsString("channel") + "SelbstVergleich" + ".pdf"));
+							Paths.get("tmitocar/comparison_" + channel + "VergleichText." + type
+									+ "_vs_" + channel + "SelbstVergleich" + ".pdf"));
 					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
-					JSONObject xAPI = createXAPIStatement2(jsonBody.getAsString("email"),
-							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
-							fileBodyAPI, userCompareText.get(jsonBody.getAsString("channel")));
+					JSONObject xAPI = createXAPIStatement2(jsonBody.get("email").toString(),
+							jsonBody.get("fileName").toString(), userTexts.get(channel),
+							fileBodyAPI, userCompareText.get(channel));
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
 						sendXAPIStatement(xAPI, "dresden");
 						System.out.println("xAPI statement created");
@@ -1025,55 +1030,55 @@ public class TmitocarService extends RESTService {
 			}
 		}
 
-		// byte[] pdfByte = getPDF(jsonBody.getAsString("channel"),
-		// this.expertLabel.get(jsonBody.getAsString("channel")))
+		// byte[] pdfByte = getPDF(channel,
+		// this.expertLabel.get(channel))
 		// .getEntity().toString().getBytes();
 		// System.out.println(pdfByte);
 		JSONObject response = new JSONObject();
-		if (userTexts.get(jsonBody.getAsString("channel")) != null) {
+		if (userTexts.get(channel) != null) {
 			System.out.println("converging pdf to base64");
 			try {
 				String type = "";
-				if (userCompareType.get(jsonBody.getAsString("channel")).toLowerCase().contains("pdf")) {
+				if (userCompareType.get(channel).toLowerCase().contains("pdf")) {
 					type = "pdf";
 				} else {
 					type = "txt";
 				}
 				byte[] pdfByte = Files.readAllBytes(
-						Paths.get("tmitocar/comparison_" + jsonBody.getAsString("channel") + "VergleichText." + type
-								+ "_vs_" + jsonBody.getAsString("channel") + "SelbstVergleich" + ".pdf"));
+						Paths.get("tmitocar/comparison_" + channel + "VergleichText." + type
+								+ "_vs_" + channel + "SelbstVergleich" + ".pdf"));
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
 				response.put("fileType", "pdf");
 				response.put("fileName", "Feedback");
-				userTexts.remove(jsonBody.getAsString("channel"));
-				userCompareText.remove(jsonBody.getAsString("channel"));
+				userTexts.remove(channel);
+				userCompareText.remove(channel);
 				System.out.println("finished conversion from pdf to base64");
 			} catch (Exception e) {
 				e.printStackTrace();
-				userTexts.remove(jsonBody.getAsString("channel"));
-				userCompareText.remove(jsonBody.getAsString("channel"));
+				userTexts.remove(channel);
+				userCompareText.remove(channel);
 				System.out.println("failed conversion from pdf to base64");
 			}
 		}
 		errorMessage = "";
-		if ((userError.get(jsonBody.getAsString("channel")) != null && !userError.get(jsonBody.getAsString("channel")))
-				|| response.getAsString("fileBody") == null) {
-			userCompareText.remove(jsonBody.getAsString("channel"));
+		if ((userError.get(channel) != null && !userError.get(channel))
+				|| response.get("fileBody") == null) {
+			userCompareText.remove(channel);
 			if (jsonBody.get("submissionFailed") != null) {
-				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionFailed"));
+				errorMessage = replaceUmlaute(jsonBody.get("submissionFailed").toString());
 			} else {
 				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
 			}
 			System.out.println("Removing User from Errorlist1");
-			userError.remove(jsonBody.getAsString("channel"));
+			userError.remove(channel);
 		} else {
 			if (jsonBody.get("submissionSucceeded") != null)
-				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionSucceeded"));
+				errorMessage = replaceUmlaute(jsonBody.get("submissionSucceeded").toString());
 			System.out.println("Removing User from Errorlist2");
-			if (userError.get(jsonBody.getAsString("channel")) != null) {
-				userCompareText.remove(jsonBody.getAsString("channel"));
-				userError.remove(jsonBody.getAsString("channel"));
+			if (userError.get(channel) != null) {
+				userCompareText.remove(channel);
+				userError.remove(channel);
 			}
 		}
 		System.out.println("response is " + response);
@@ -1096,26 +1101,27 @@ public class TmitocarService extends RESTService {
 		JSONObject jsonBody = new JSONObject();
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
-		System.out.println(jsonBody.getAsString("fileName"));
+		String channel = jsonBody.get("channel").toString();
+		System.out.println(jsonBody.get("fileName").toString());
 		// check if name has correct form
-		if ((!jsonBody.getAsString("fileType").toLowerCase().contains("pdf")
-				&& !jsonBody.getAsString("fileType").toLowerCase().contains("txt")
-				&& !jsonBody.getAsString("fileType").toLowerCase().contains("text"))) {
+		if ((!jsonBody.get("fileType").toString().toLowerCase().contains("pdf")
+				&& !jsonBody.get("fileType").toString().toLowerCase().contains("txt")
+				&& !jsonBody.get("fileType").toString().toLowerCase().contains("text"))) {
 			jsonBody = new JSONObject();
 			jsonBody.put("text", "Wrong file name/type");
 			return Response.ok().entity(jsonBody).build();
 		}
 		String message = "";
-		if (jsonBody.getAsString("fileBody") != null) {
-			userCompareText.put(jsonBody.getAsString("channel"), jsonBody.getAsString("fileBody"));
-			userCompareType.put(jsonBody.getAsString("channel"), jsonBody.getAsString("fileType"));
-			userCompareName.put(jsonBody.getAsString("email"), jsonBody.getAsString("fileName"));
-			if (jsonBody.getAsString("submissionSucceeded") != null) {
-				message = jsonBody.getAsString("submissionSucceeded");
+		if (jsonBody.get("fileBody") != null) {
+			userCompareText.put(channel, jsonBody.get("fileBody").toString());
+			userCompareType.put(channel, jsonBody.get("fileType").toString());
+			userCompareName.put(jsonBody.get("email").toString(), jsonBody.get("fileName").toString());
+			if (jsonBody.get("submissionSucceeded") != null) {
+				message = jsonBody.get("submissionSucceeded").toString();
 			}
 		} else {
-			if (jsonBody.getAsString("submissionFailed") != null) {
-				message = jsonBody.getAsString("submissionFailed");
+			if (jsonBody.get("submissionFailed") != null) {
+				message = jsonBody.get("submissionFailed").toString();
 			} else
 				message = "Problem with reading file";
 		}
@@ -1470,25 +1476,24 @@ public class TmitocarService extends RESTService {
 		JSONObject jsonBody = new JSONObject();
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
+		String channel = jsonBody.get("channel").toString();
 		String errorMessage = "";
 		try {
-			errorMessage = jsonBody.getAsString("submissionFailed");
+			errorMessage = jsonBody.get("submissionFailed").toString();
 		} catch (NullPointerException e) {
 			errorMessage = "Fehler";
 		}
 
-		System.out.println(jsonBody.getAsString("fileName"));
-
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic("Medienkompetenz");
-		tmitoBody.setType(jsonBody.getAsString("fileType"));
+		tmitoBody.setType(jsonBody.get("fileType").toString());
 		tmitoBody.setWordSpec("1200");
-		tmitoBody.setText(jsonBody.getAsString("fileBody"));
-		processSingleText(jsonBody.getAsString("channel"), jsonBody.getAsString("fileName"), "template_ddmz_single.md",
+		tmitoBody.setText(jsonBody.get("fileBody").toString());
+		processSingleText(channel, jsonBody.get("fileName").toString(), "template_ddmz_single.md",
 				tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
-			isActive = this.isActive.get(jsonBody.getAsString("channel"));
+			isActive = this.isActive.get(channel);
 			// isActive = Boolean.parseBoolean(result.getResponse());
 			System.out.println(isActive);
 			try {
@@ -1499,17 +1504,17 @@ public class TmitocarService extends RESTService {
 			}
 		}
 		System.out.println("try creating xapi statement");
-		if (userError.get(jsonBody.getAsString("channel")) == null) {
-			if (userTexts.get(jsonBody.getAsString("channel")).length() < 20) {
-				userError.put(jsonBody.getAsString("channel"), false);
+		if (userError.get(channel) == null) {
+			if (userTexts.get(channel).length() < 20) {
+				userError.put(channel, false);
 			} else {
 				try {
 					System.out.println("try creating xapi statement");
 					byte[] pdfByteAPI = Files.readAllBytes(Paths
-							.get("tmitocar/texts/" + jsonBody.getAsString("channel") + "/" + "text-modell" + ".pdf"));
+							.get("tmitocar/texts/" + channel + "/" + "text-modell" + ".pdf"));
 					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
-					JSONObject xAPI = createXAPIStatement2(jsonBody.getAsString("email"),
-							jsonBody.getAsString("fileName"), userTexts.get(jsonBody.getAsString("channel")),
+					JSONObject xAPI = createXAPIStatement2(jsonBody.get("email").toString(),
+							jsonBody.get("fileName").toString(), userTexts.get(channel),
 							fileBodyAPI, "singleAnalysis");
 					if (jsonBody.get("lrs") != null) {
 						sendXAPIStatement(xAPI, "dresden");
@@ -1525,21 +1530,21 @@ public class TmitocarService extends RESTService {
 				}
 			}
 		}
-		// byte[] pdfByte = getPDF(jsonBody.getAsString("channel"),
-		// this.expertLabel.get(jsonBody.getAsString("channel")))
+		// byte[] pdfByte = getPDF(channel,
+		// this.expertLabel.get(channel))
 		// .getEntity().toString().getBytes();
 		// System.out.println(pdfByte);
 		JSONObject response = new JSONObject();
-		if (userTexts.get(jsonBody.getAsString("channel")) != null) {
+		if (userTexts.get(channel) != null) {
 			System.out.println("converging pdf to base64");
 			try {
 				byte[] pdfByte = Files.readAllBytes(
-						Paths.get("tmitocar/texts/" + jsonBody.getAsString("channel") + "/" + "text-modell" + ".pdf"));
+						Paths.get("tmitocar/texts/" + channel + "/" + "text-modell" + ".pdf"));
 				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 				response.put("fileBody", fileBody);
 				response.put("fileType", "pdf");
 				response.put("fileName", "Feedback");
-				userTexts.remove(jsonBody.getAsString("channel"));
+				userTexts.remove(channel);
 				System.out.println("finished conversion from pdf to base64");
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -1547,21 +1552,21 @@ public class TmitocarService extends RESTService {
 			}
 		}
 		errorMessage = "";
-		if ((userError.get(jsonBody.getAsString("channel")) != null && !userError.get(jsonBody.getAsString("channel")))
-				|| response.getAsString("fileBody") == null) {
+		if ((userError.get(channel) != null && !userError.get(channel))
+				|| response.get("fileBody") == null) {
 			if (jsonBody.get("submissionFailed") != null) {
-				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionFailed"));
+				errorMessage = replaceUmlaute(jsonBody.get("submissionFailed").toString());
 			} else {
 				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
 			}
 			System.out.println("Removing User from Errorlist1");
-			userError.remove(jsonBody.getAsString("channel"));
+			userError.remove(channel);
 		} else {
 			if (jsonBody.get("submissionSucceeded") != null)
-				errorMessage = replaceUmlaute(jsonBody.getAsString("submissionSucceeded"));
+				errorMessage = replaceUmlaute(jsonBody.get("submissionSucceeded").toString());
 			System.out.println("Removing User from Errorlist2");
-			if (userError.get(jsonBody.getAsString("channel")) != null) {
-				userError.remove(jsonBody.getAsString("channel"));
+			if (userError.get(channel) != null) {
+				userError.remove(channel);
 			}
 		}
 		// System.out.println("response is " + response);
@@ -1586,8 +1591,13 @@ public class TmitocarService extends RESTService {
 			String hashtext = no.toString(16);
 
 			// Add preceding 0s to make it 32 bit
-			while (hashtext.length() < 32) {
-				hashtext = "0" + hashtext;
+			try{
+				System.out.println(hashtext.getBytes("UTF-16BE").length * 8);
+				while (hashtext.getBytes("UTF-16BE").length * 8 < 1536) {
+					hashtext = "0" + hashtext;
+				}
+			} catch (Exception e){
+					System.out.println(e);
 			}
 
 			// return the HashText
