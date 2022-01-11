@@ -3,7 +3,7 @@ FROM openjdk:17.0.1-jdk-buster
 RUN apt-get update && apt-get install -y default-mysql-client ant jq build-essential libffi-dev ruby ruby-bundler dos2unix coreutils curl tzdata git gcc cmake libpng-dev graphviz wkhtmltopdf pandoc rsync poppler-utils
 
 RUN git clone --recursive https://github.com/kornelski/pngquant.git
-RUN cd pngquant && ./configure && make install
+RUN cd pngquant && git checkout 22918da1f4ae56b4300dfb30137f0f29cc8a0866 && ./configure && make install
 RUN apt-get update && apt-get install -y texlive-xetex
 RUN gem install docsplit 
 ENV TZ=Europe/Berlin
