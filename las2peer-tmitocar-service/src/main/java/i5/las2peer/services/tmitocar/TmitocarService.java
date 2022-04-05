@@ -744,7 +744,7 @@ public class TmitocarService extends RESTService {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
 		String errorMessage = "";
-		String expertLabel = "Mustertext_WS";
+		String expertLabel = "Mustertext_SS";
 		String channel = jsonBody.get("channel").toString();
 		try {
 			errorMessage = jsonBody.get("submissionFailed").toString();
@@ -1715,7 +1715,7 @@ public class TmitocarService extends RESTService {
 		if (analysisType.equals("compareToSample")) {
 			context = (JSONObject) p.parse(
 					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'"
-							+ text + "', 'analysisType':'compareToSample'}}}"));
+							+ text + "', 'analysisType':'compareToSample','assignmentNumber':'1'}}}"));
 		} else if (analysisType.equals("singleAnalysis")) {
 			context = (JSONObject) p.parse(
 					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'"
