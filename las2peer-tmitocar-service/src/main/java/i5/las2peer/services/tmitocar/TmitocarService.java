@@ -452,7 +452,7 @@ public class TmitocarService extends RESTService {
 							System.out.println("Using wordspec: " + wordspec);
 							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
 									"-l", user + expert, "-o", "json", "-S", "-w", wordspec);
-									
+
 						} else {
 							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
 									"-l", user + expert, "-o", "json", "-S");
@@ -475,12 +475,14 @@ public class TmitocarService extends RESTService {
 						System.out.println("create single model");
 						if (wordspec != null && wordspec.length() > 2) {
 							System.out.println("Using wordspec: " + wordspec);
-							pbLocalJson = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
+							pbLocalJson = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
+									"texts/" + user + "/" + fileName,
 									"-l", user + expert + "json", "-o", "json", "-w", wordspec);
-									
+
 						} else {
-							pbLocalJson = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
-									"-l", user + expert + "json" , "-o", "json");
+							pbLocalJson = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
+									"texts/" + user + "/" + fileName,
+									"-l", user + expert + "json", "-o", "json");
 						}
 
 						pbLocalJson.inheritIO();
@@ -633,7 +635,7 @@ public class TmitocarService extends RESTService {
 				response.put("fileName", "Feedback");
 				userTexts.remove(channel);
 				jsonFile.put(channel, "tmitocar/texts/" + channel + "/text-modell.json");
-				userEmail.put(channel,jsonBody.get("email").toString());
+				userEmail.put(channel, jsonBody.get("email").toString());
 				userFileName.put(channel, jsonBody.get("fileName").toString());
 				System.out.println("finished conversion from pdf to base64");
 
@@ -653,9 +655,10 @@ public class TmitocarService extends RESTService {
 			System.out.println("Removing User from Errorlist1");
 			userError.remove(channel);
 		} else {
-			if (jsonBody.get("submissionSucceeded") != null)
+			if (jsonBody.get("submissionSucceeded") != null) {
 				errorMessage = replaceUmlaute(jsonBody.get("submissionSucceeded").toString());
-			System.out.println("Removing User from Errorlist2");
+			}
+			System.out.println("Removing User from Errorlist2" + errorMessage);
 			if (userError.get(channel) != null) {
 				userError.remove(channel);
 			}
@@ -683,7 +686,7 @@ public class TmitocarService extends RESTService {
 		JSONObject jsonBody = new JSONObject();
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
-		String channel = jsonBody.get("channel").toString(); 
+		String channel = jsonBody.get("channel").toString();
 		// byte[] pdfByte = getPDF(channel,
 		// this.expertLabel.get(channel))
 		// .getEntity().toString().getBytes();
@@ -697,15 +700,17 @@ public class TmitocarService extends RESTService {
 				response.put("fileBody", fileBody);
 				// response.put("fileType", "json");
 				response.put("fileType", "json");
-				response.put("fileName", userFileName.get(channel).replace(".txt","").replace(".pdf","")+"-graph");
-				if(jsonBody.get("submissionSucceeded") != null && !jsonBody.get("submissionSucceeded").toString().equals(""))
-				{
+				response.put("fileName", userFileName.get(channel).replace(".txt", "").replace(".pdf", "") + "-graph");
+				if (jsonBody.get("submissionSucceeded") != null
+						&& !jsonBody.get("submissionSucceeded").toString().equals("")) {
 					response.put("text", jsonBody.get("submissionSucceeded").toString());
 				}
-					//xAPImobsos.put("statement", xAPI);
-					//xAPImobsos.put("token", lrsAuthTokenLeipzig);
-					//Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPImobsos.toString());
-					//Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33, xAPImobsos.toString());
+				// xAPImobsos.put("statement", xAPI);
+				// xAPImobsos.put("token", lrsAuthTokenLeipzig);
+				// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
+				// xAPImobsos.toString());
+				// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33,
+				// xAPImobsos.toString());
 				jsonFile.remove(channel);
 				System.out.println("finished conversion json from pdf to base64");
 				return Response.ok().entity(response).build();
@@ -897,8 +902,8 @@ public class TmitocarService extends RESTService {
 				JSONObject context = (JSONObject) jsonIndex.get("context");
 				// JSONObject definition = (JSONObject) object.get("definition");
 				JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
-					System.out.println("13");
-						System.out.println("14");
+				System.out.println("13");
+				System.out.println("14");
 				// check if its not a delete statement
 				if (extensions.get("https://tech4comp.de/xapi/context/extensions/filecontent") != null) {
 					JSONObject fileDetails = (JSONObject) extensions
@@ -1591,13 +1596,13 @@ public class TmitocarService extends RESTService {
 			String hashtext = no.toString(16);
 
 			// Add preceding 0s to make it 32 bit
-			try{
+			try {
 				System.out.println(hashtext.getBytes("UTF-16BE").length * 8);
 				while (hashtext.getBytes("UTF-16BE").length * 8 < 1536) {
 					hashtext = "0" + hashtext;
 				}
-			} catch (Exception e){
-					System.out.println(e);
+			} catch (Exception e) {
+				System.out.println(e);
 			}
 
 			// return the HashText
@@ -1651,7 +1656,8 @@ public class TmitocarService extends RESTService {
 
 	}
 
-	public JSONObject createXAPIStatement(String userMail, String fileName, String assignmentTitle, String text, String channel)
+	public JSONObject createXAPIStatement(String userMail, String fileName, String assignmentTitle, String text,
+			String channel)
 			throws ParseException {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		JSONObject actor = new JSONObject();
@@ -1662,9 +1668,9 @@ public class TmitocarService extends RESTService {
 		account.put("homePage", "https://chat.tech4comp.dbis.rwth-aachen.de");
 		actor.put("account", account);
 		String jsonModel = "";
-		try{
+		try {
 			jsonModel = readTxtFile("tmitocar/texts/" + channel + "/text-modell.json");
-		} catch(Exception e) {
+		} catch (Exception e) {
 			System.out.println("Json Model could not be fetched");
 			e.printStackTrace();
 			jsonModel = "No Json Model available";
@@ -1679,7 +1685,10 @@ public class TmitocarService extends RESTService {
 						+ encryptThisString(userMail) + assignmentTitle + "', 'objectType':'Activity'}"));
 		JSONObject context = (JSONObject) p.parse(new String(
 				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'assignmentNumber':'"
-						+ assignmentTitle + "','text':'" + JSONValue.escape(text.replaceAll("[^\\x00-\\x7F]", "")).toString().replaceAll("\\P{ASCII}", "").replace("'", "\\'")+ "','jsonModel':'" + jsonModel + "'}}}"));
+						+ assignmentTitle + "','text':'"
+						+ JSONValue.escape(text.replaceAll("[^\\x00-\\x7F]", "")).toString()
+								.replaceAll("\\P{ASCII}", "").replace("'", "\\'")
+						+ "','jsonModel':'" + jsonModel + "'}}}"));
 		JSONObject xAPI = new JSONObject();
 
 		xAPI.put("authority", p.parse(
@@ -1740,7 +1749,6 @@ public class TmitocarService extends RESTService {
 		// System.out.println(xAPI);
 		return xAPI;
 	}
-
 
 	// wrote method in case I dont manage to fix learning locker problem...
 	public void sendXAPIStatement(JSONObject xAPI, String lrs) {
