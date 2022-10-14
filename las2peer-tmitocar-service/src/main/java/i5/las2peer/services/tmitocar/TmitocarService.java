@@ -749,7 +749,7 @@ public class TmitocarService extends RESTService {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
 		String errorMessage = "";
-		String expertLabel = "Mustertext_SS";
+		String expertLabel = "Mustertext_WS";
 		String channel = jsonBody.get("channel").toString();
 		try {
 			errorMessage = jsonBody.get("submissionFailed").toString();
