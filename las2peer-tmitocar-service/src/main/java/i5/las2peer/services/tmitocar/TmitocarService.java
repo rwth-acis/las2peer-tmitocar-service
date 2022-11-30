@@ -77,8 +77,6 @@ public class TmitocarService extends RESTService {
 	private String publicKey;
 	private String privateKey;
 	private String lrsURL;
-	private String lrsAuthTokenDresden;
-	private String lrsAuthTokenLeipzig;
 	private static HashMap<String, Boolean> userError = null;
 	private static HashMap<String, String> userTexts = null;
 	private static HashMap<String, Boolean> isActive = null;
@@ -575,12 +573,16 @@ public class TmitocarService extends RESTService {
 		String channel = jsonBody.get("channel").toString();
 		int taskNumber = Integer.parseInt(jsonBody.get("fileName").toString().replaceAll("[^0-9]", ""));
 		String expertLabel = "t" + String.valueOf(taskNumber);
+
+		String topic = jsonBody.getAsString("topic");
+		String template = jsonBody.getAsString("template");
+
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(expertLabel);
 		tmitoBody.setType(jsonBody.get("fileType").toString());
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.get("fileBody").toString());
-		compareText(channel, expertLabel, "template_ul_Q1_2021C.md", tmitoBody);
+		compareText(channel, expertLabel, template, tmitoBody); // "template_ul_Q1_2021C.md"
 		boolean isActive = true;
 		while (isActive) {
 			isActive = this.isActive.get(channel);
@@ -603,8 +605,9 @@ public class TmitocarService extends RESTService {
 					JSONObject xAPI = createXAPIStatement(jsonBody.get("email").toString(),
 							jsonBody.get("fileName").toString(), expertLabel.replace("t", ""),
 							userTexts.get(channel), channel);
-					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
-						sendXAPIStatement(xAPI, "leipzig");
+					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
+						String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+						sendXAPIStatement(xAPI, lrsAuthToken);
 						System.out.println("xAPI statement created");
 					}
 					JSONObject xAPImobsos = new JSONObject();
@@ -618,10 +621,6 @@ public class TmitocarService extends RESTService {
 				}
 			}
 		}
-		// byte[] pdfByte = getPDF(channel,
-		// this.expertLabel.get(channel))
-		// .getEntity().toString().getBytes();
-		// System.out.println(pdfByte);
 
 		JSONObject response = new JSONObject();
 		if (userTexts.get(jsonBody.get("channel")) != null) {
@@ -687,10 +686,6 @@ public class TmitocarService extends RESTService {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
 		String channel = jsonBody.get("channel").toString();
-		// byte[] pdfByte = getPDF(channel,
-		// this.expertLabel.get(channel))
-		// .getEntity().toString().getBytes();
-		// System.out.println(pdfByte);
 
 		JSONObject response = new JSONObject();
 		if (jsonFile.containsKey(channel)) {
@@ -705,12 +700,7 @@ public class TmitocarService extends RESTService {
 						&& !jsonBody.get("submissionSucceeded").toString().equals("")) {
 					response.put("text", jsonBody.get("submissionSucceeded").toString());
 				}
-				// xAPImobsos.put("statement", xAPI);
-				// xAPImobsos.put("token", lrsAuthTokenLeipzig);
-				// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3,
-				// xAPImobsos.toString());
-				// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33,
-				// xAPImobsos.toString());
+
 				jsonFile.remove(channel);
 				System.out.println("finished conversion json from pdf to base64");
 				return Response.ok().entity(response).build();
@@ -749,7 +739,7 @@ public class TmitocarService extends RESTService {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
 		String errorMessage = "";
-		String expertLabel = "Mustertext_WS";
+		String expertLabel = jsonBody.getAsString("expertLabel"); //"Mustertext_WS";
 		String channel = jsonBody.get("channel").toString();
 		try {
 			errorMessage = jsonBody.get("submissionFailed").toString();
@@ -759,12 +749,16 @@ public class TmitocarService extends RESTService {
 
 		System.out.println(jsonBody.get("fileName").toString());
 
+		
+		String topic = jsonBody.getAsString("topic");
+		String template = jsonBody.getAsString("template");
+
 		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic("Medienkompetenz");
+		tmitoBody.setTopic(topic);
 		tmitoBody.setType(jsonBody.get("fileType").toString());
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.get("fileBody").toString());
-		compareText(channel, expertLabel, "template_ddmz_withoutCompareGraphs.md", tmitoBody);
+		compareText(channel, expertLabel, template, tmitoBody); // "template_ddmz_withoutCompareGraphs.md"
 		boolean isActive = true;
 		while (isActive) {
 			isActive = this.isActive.get(channel);
@@ -790,8 +784,9 @@ public class TmitocarService extends RESTService {
 					JSONObject xAPI = createXAPIStatement2(jsonBody.get("email").toString(),
 							jsonBody.get("fileName").toString(), userTexts.get(channel),
 							fileBodyAPI, "compareToSample");
-					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
-						sendXAPIStatement(xAPI, "dresden");
+					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
+						String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+						sendXAPIStatement(xAPI, lrsAuthToken);
 						System.out.println("xAPI statement created");
 					}
 					JSONObject xAPImobsos = new JSONObject();
@@ -804,10 +799,7 @@ public class TmitocarService extends RESTService {
 				}
 			}
 		}
-		// byte[] pdfByte = getPDF(channel,
-		// this.expertLabel.get(channel))
-		// .getEntity().toString().getBytes();
-		// System.out.println(pdfByte);
+
 		JSONObject response = new JSONObject();
 		if (userTexts.get(jsonBody.get("channel").toString()) != null) {
 			System.out.println("converging pdf to base64");
@@ -980,12 +972,15 @@ public class TmitocarService extends RESTService {
 			return Response.ok().entity(jsonBody).build();
 		}
 
+		String topic = jsonBody.getAsString("topic");
+		String template = jsonBody.getAsString("template");
+
 		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic("Medienkompetenz");
+		tmitoBody.setTopic(topic);
 		tmitoBody.setType(jsonBody.get("fileType").toString());
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.get("fileBody").toString());
-		compareUserTexts(channel, "SelbstVergleich", "template_ddmz_twoTexts_withoutCompareGraphs.md", tmitoBody);
+		compareUserTexts(channel, "SelbstVergleich", template, tmitoBody); // "template_ddmz_twoTexts_withoutCompareGraphs.md"
 		boolean isActive = true;
 		while (isActive) {
 			isActive = this.isActive.get(channel);
@@ -1020,8 +1015,9 @@ public class TmitocarService extends RESTService {
 					JSONObject xAPI = createXAPIStatement2(jsonBody.get("email").toString(),
 							jsonBody.get("fileName").toString(), userTexts.get(channel),
 							fileBodyAPI, userCompareText.get(channel));
-					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null) {
-						sendXAPIStatement(xAPI, "dresden");
+					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
+						String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+						sendXAPIStatement(xAPI, lrsAuthToken);
 						System.out.println("xAPI statement created");
 					} //
 					JSONObject xAPImobsos = new JSONObject();
@@ -1035,10 +1031,6 @@ public class TmitocarService extends RESTService {
 			}
 		}
 
-		// byte[] pdfByte = getPDF(channel,
-		// this.expertLabel.get(channel))
-		// .getEntity().toString().getBytes();
-		// System.out.println(pdfByte);
 		JSONObject response = new JSONObject();
 		if (userTexts.get(channel) != null) {
 			System.out.println("converging pdf to base64");
@@ -1477,7 +1469,6 @@ public class TmitocarService extends RESTService {
 	@ApiResponses(value = {
 			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "REPLACE THIS WITH YOUR OK MESSAGE") })
 	public Response analyzeSingleText(String body) throws ParseException, IOException {
-		System.out.println(body);
 		JSONObject jsonBody = new JSONObject();
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
@@ -1489,12 +1480,15 @@ public class TmitocarService extends RESTService {
 			errorMessage = "Fehler";
 		}
 
+		String topic = jsonBody.getAsString("topic");
+		String template = jsonBody.getAsString("template");
+
 		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic("Medienkompetenz");
+		tmitoBody.setTopic(topic);
 		tmitoBody.setType(jsonBody.get("fileType").toString());
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.get("fileBody").toString());
-		processSingleText(channel, jsonBody.get("fileName").toString(), "template_ddmz_single.md",
+		processSingleText(channel, jsonBody.get("fileName").toString(), template, //"template_ddmz_single.md",
 				tmitoBody);
 		boolean isActive = true;
 		while (isActive) {
@@ -1508,7 +1502,7 @@ public class TmitocarService extends RESTService {
 				e.printStackTrace();
 			}
 		}
-		System.out.println("try creating xapi statement");
+		System.out.println("Try creating xapi statement");
 		if (userError.get(channel) == null) {
 			if (userTexts.get(channel).length() < 20) {
 				userError.put(channel, false);
@@ -1521,8 +1515,9 @@ public class TmitocarService extends RESTService {
 					JSONObject xAPI = createXAPIStatement2(jsonBody.get("email").toString(),
 							jsonBody.get("fileName").toString(), userTexts.get(channel),
 							fileBodyAPI, "singleAnalysis");
-					if (jsonBody.get("lrs") != null) {
-						sendXAPIStatement(xAPI, "dresden");
+					if (jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
+						String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+						sendXAPIStatement(xAPI, lrsAuthToken);
 						System.out.println("xAPI statement created");
 					}
 					JSONObject xAPImobsos = new JSONObject();
@@ -1531,14 +1526,11 @@ public class TmitocarService extends RESTService {
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_4, xAPImobsos.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
-					System.out.println("could not create API statement");
+					System.out.println("Could not create API statement");
 				}
 			}
 		}
-		// byte[] pdfByte = getPDF(channel,
-		// this.expertLabel.get(channel))
-		// .getEntity().toString().getBytes();
-		// System.out.println(pdfByte);
+
 		JSONObject response = new JSONObject();
 		if (userTexts.get(channel) != null) {
 			System.out.println("converging pdf to base64");
@@ -1751,7 +1743,7 @@ public class TmitocarService extends RESTService {
 	}
 
 	// wrote method in case I dont manage to fix learning locker problem...
-	public void sendXAPIStatement(JSONObject xAPI, String lrs) {
+	public void sendXAPIStatement(JSONObject xAPI, String lrsAuthToken) {
 		// Copy pasted from LL service
 		// POST statements
 		try {
@@ -1762,11 +1754,7 @@ public class TmitocarService extends RESTService {
 			conn.setRequestMethod("POST");
 			conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
 			conn.setRequestProperty("X-Experience-API-Version", "1.0.3");
-			if (lrs.equals("dresden")) {
-				conn.setRequestProperty("Authorization", "Basic " + lrsAuthTokenDresden);
-			} else if (lrs.equals("leipzig")) {
-				conn.setRequestProperty("Authorization", "Basic " + lrsAuthTokenLeipzig);
-			}
+			conn.setRequestProperty("Authorization", "Basic " + lrsAuthToken);
 			conn.setRequestProperty("Cache-Control", "no-cache");
 			conn.setUseCaches(false);
 
