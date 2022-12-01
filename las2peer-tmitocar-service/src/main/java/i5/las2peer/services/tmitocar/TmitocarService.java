@@ -601,18 +601,19 @@ public class TmitocarService extends RESTService {
 				userError.put(channel, false);
 			} else {
 				try {
+					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
 					System.out.println("try creating xapi statement");
 					JSONObject xAPI = createXAPIStatement(jsonBody.get("email").toString(),
 							jsonBody.get("fileName").toString(), expertLabel.replace("t", ""),
 							userTexts.get(channel), channel);
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
-						String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+						
 						sendXAPIStatement(xAPI, lrsAuthToken);
 						System.out.println("xAPI statement created");
 					}
 					JSONObject xAPImobsos = new JSONObject();
 					xAPImobsos.put("statement", xAPI);
-					xAPImobsos.put("token", lrsAuthTokenLeipzig);
+					xAPImobsos.put("token", lrsAuthToken);
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPImobsos.toString());
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33, xAPImobsos.toString());
 				} catch (ParseException e) {
@@ -777,6 +778,7 @@ public class TmitocarService extends RESTService {
 				userError.put(channel, false);
 			} else {
 				try {
+					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
 					System.out.println("try creating xapi statement");
 					byte[] pdfByteAPI = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
 							+ channel + expertLabel + ".pdf"));
@@ -785,13 +787,12 @@ public class TmitocarService extends RESTService {
 							jsonBody.get("fileName").toString(), userTexts.get(channel),
 							fileBodyAPI, "compareToSample");
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
-						String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
 						sendXAPIStatement(xAPI, lrsAuthToken);
 						System.out.println("xAPI statement created");
 					}
 					JSONObject xAPImobsos = new JSONObject();
 					xAPImobsos.put("statement", xAPI);
-					xAPImobsos.put("token", lrsAuthTokenDresden);
+					xAPImobsos.put("token", lrsAuthToken);
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_4, xAPImobsos.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
@@ -860,11 +861,13 @@ public class TmitocarService extends RESTService {
 				+ "', 'homePage': 'https://chat.tech4comp.dbis.rwth-aachen.de'}}"));
 		URL url = new URL(lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
 
+		String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+
 		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 		conn.setRequestMethod("GET");
 		conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
 		conn.setRequestProperty("X-Experience-API-Version", "1.0.3");
-		conn.setRequestProperty("Authorization", "Basic " + lrsAuthTokenLeipzig);
+		conn.setRequestProperty("Authorization", "Basic " + lrsAuthToken);
 		conn.setRequestProperty("Cache-Control", "no-cache");
 		conn.setUseCaches(false);
 		BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -974,13 +977,14 @@ public class TmitocarService extends RESTService {
 
 		String topic = jsonBody.getAsString("topic");
 		String template = jsonBody.getAsString("template");
+		String expertLabel = jsonBody.getAsString("expertLabel");
 
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(topic);
 		tmitoBody.setType(jsonBody.get("fileType").toString());
 		tmitoBody.setWordSpec("1200");
 		tmitoBody.setText(jsonBody.get("fileBody").toString());
-		compareUserTexts(channel, "SelbstVergleich", template, tmitoBody); // "template_ddmz_twoTexts_withoutCompareGraphs.md"
+		compareUserTexts(channel, expertLabel, template, tmitoBody); // "template_ddmz_twoTexts_withoutCompareGraphs.md"
 		boolean isActive = true;
 		while (isActive) {
 			isActive = this.isActive.get(channel);
