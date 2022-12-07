@@ -574,8 +574,8 @@ public class TmitocarService extends RESTService {
 		int taskNumber = Integer.parseInt(jsonBody.get("fileName").toString().replaceAll("[^0-9]", ""));
 		String expertLabel = "t" + String.valueOf(taskNumber);
 
-		String topic = jsonBody.getAsString("topic");
-		String template = jsonBody.getAsString("template");
+		String topic = jsonBody.get("topic").toString();
+		String template = jsonBody.get("template").toString();
 
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(expertLabel);
@@ -601,7 +601,7 @@ public class TmitocarService extends RESTService {
 				userError.put(channel, false);
 			} else {
 				try {
-					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+					String lrsAuthToken = jsonBody.get("lrsAuthToken").toString();
 					System.out.println("try creating xapi statement");
 					JSONObject xAPI = createXAPIStatement(jsonBody.get("email").toString(),
 							jsonBody.get("fileName").toString(), expertLabel.replace("t", ""),
@@ -740,7 +740,7 @@ public class TmitocarService extends RESTService {
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		jsonBody = (JSONObject) p.parse(body);
 		String errorMessage = "";
-		String expertLabel = jsonBody.getAsString("expertLabel"); //"Mustertext_WS";
+		String expertLabel = jsonBody.get("expertLabel").toString(); //"Mustertext_WS";
 		String channel = jsonBody.get("channel").toString();
 		try {
 			errorMessage = jsonBody.get("submissionFailed").toString();
@@ -751,8 +751,8 @@ public class TmitocarService extends RESTService {
 		System.out.println(jsonBody.get("fileName").toString());
 
 		
-		String topic = jsonBody.getAsString("topic");
-		String template = jsonBody.getAsString("template");
+		String topic = jsonBody.get("topic");
+		String template = jsonBody.get("template").toString();
 
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(topic);
@@ -778,7 +778,7 @@ public class TmitocarService extends RESTService {
 				userError.put(channel, false);
 			} else {
 				try {
-					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+					String lrsAuthToken = jsonBody.get("lrsAuthToken").toString();
 					System.out.println("try creating xapi statement");
 					byte[] pdfByteAPI = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
 							+ channel + expertLabel + ".pdf"));
@@ -861,7 +861,7 @@ public class TmitocarService extends RESTService {
 				+ "', 'homePage': 'https://chat.tech4comp.dbis.rwth-aachen.de'}}"));
 		URL url = new URL(lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
 
-		String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+		String lrsAuthToken = jsonBody.get("lrsAuthToken").toString();
 
 		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 		conn.setRequestMethod("GET");
@@ -975,9 +975,9 @@ public class TmitocarService extends RESTService {
 			return Response.ok().entity(jsonBody).build();
 		}
 
-		String topic = jsonBody.getAsString("topic");
-		String template = jsonBody.getAsString("template");
-		String expertLabel = jsonBody.getAsString("expertLabel");
+		String topic = jsonBody.get("topic").toString();
+		String template = jsonBody.get("template").toString();
+		String expertLabel = jsonBody.get("expertLabel").toString();
 
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(topic);
@@ -1005,7 +1005,7 @@ public class TmitocarService extends RESTService {
 			} else {
 				try {
 					System.out.println("try creating xapi statement");
-					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+					String lrsAuthToken = jsonBody.get("lrsAuthToken").toString();
 					String type = "";
 					if (userCompareType.get(channel).toLowerCase().contains("pdf")) {
 						type = "pdf";
@@ -1484,8 +1484,8 @@ public class TmitocarService extends RESTService {
 			errorMessage = "Fehler";
 		}
 
-		String topic = jsonBody.getAsString("topic");
-		String template = jsonBody.getAsString("template");
+		String topic = jsonBody.get("topic").toString();
+		String template = jsonBody.get("template").toString();
 
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(topic);
@@ -1512,7 +1512,7 @@ public class TmitocarService extends RESTService {
 				userError.put(channel, false);
 			} else {
 				try {
-					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
+					String lrsAuthToken = jsonBody.get("lrsAuthToken").toString();
 					System.out.println("try creating xapi statement");
 					byte[] pdfByteAPI = Files.readAllBytes(Paths
 							.get("tmitocar/texts/" + channel + "/" + "text-modell" + ".pdf"));
