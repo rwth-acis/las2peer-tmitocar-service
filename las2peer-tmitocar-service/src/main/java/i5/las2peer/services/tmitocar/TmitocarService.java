@@ -751,7 +751,7 @@ public class TmitocarService extends RESTService {
 		System.out.println(jsonBody.get("fileName").toString());
 
 		
-		String topic = jsonBody.get("topic");
+		String topic = jsonBody.get("topic").toString();
 		String template = jsonBody.get("template").toString();
 
 		TmitocarText tmitoBody = new TmitocarText();
