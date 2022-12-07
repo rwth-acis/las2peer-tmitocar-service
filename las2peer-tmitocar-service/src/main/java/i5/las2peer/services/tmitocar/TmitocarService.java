@@ -1005,6 +1005,7 @@ public class TmitocarService extends RESTService {
 			} else {
 				try {
 					System.out.println("try creating xapi statement");
+					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
 					String type = "";
 					if (userCompareType.get(channel).toLowerCase().contains("pdf")) {
 						type = "pdf";
@@ -1020,13 +1021,12 @@ public class TmitocarService extends RESTService {
 							jsonBody.get("fileName").toString(), userTexts.get(channel),
 							fileBodyAPI, userCompareText.get(channel));
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
-						String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
 						sendXAPIStatement(xAPI, lrsAuthToken);
 						System.out.println("xAPI statement created");
 					} //
 					JSONObject xAPImobsos = new JSONObject();
 					xAPImobsos.put("statement", xAPI);
-					xAPImobsos.put("token", lrsAuthTokenDresden);
+					xAPImobsos.put("token", lrsAuthToken);
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_4, xAPImobsos.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
@@ -1512,6 +1512,7 @@ public class TmitocarService extends RESTService {
 				userError.put(channel, false);
 			} else {
 				try {
+					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
 					System.out.println("try creating xapi statement");
 					byte[] pdfByteAPI = Files.readAllBytes(Paths
 							.get("tmitocar/texts/" + channel + "/" + "text-modell" + ".pdf"));
@@ -1520,13 +1521,12 @@ public class TmitocarService extends RESTService {
 							jsonBody.get("fileName").toString(), userTexts.get(channel),
 							fileBodyAPI, "singleAnalysis");
 					if (jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
-						String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
 						sendXAPIStatement(xAPI, lrsAuthToken);
 						System.out.println("xAPI statement created");
 					}
 					JSONObject xAPImobsos = new JSONObject();
 					xAPImobsos.put("statement", xAPI);
-					xAPImobsos.put("token", lrsAuthTokenDresden);
+					xAPImobsos.put("token", lrsAuthToken);
 					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_4, xAPImobsos.toString());
 				} catch (ParseException e) {
 					e.printStackTrace();
