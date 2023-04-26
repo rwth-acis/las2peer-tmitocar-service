@@ -1482,7 +1482,6 @@ public class TmitocarService extends RESTService {
 				try {
 					byte[] pdfByte = Files.readAllBytes(
 							Paths.get("tmitocar/texts/" + label1 + "/" + "text-modell" + ".pdf"));
-					//String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
 					fileId = service.storeFile(label1+"-feedback.pdf", pdfByte);
 					Files.delete(Paths.get("tmitocar/texts/" + label1 + "/" + "text-modell" + ".pdf"));
 				} catch (Exception e) {
@@ -1531,7 +1530,31 @@ public class TmitocarService extends RESTService {
 				@FormDataParam("text") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
 				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
 				@FormDataParam("wordSpec") String wordSpec) throws ParseException, IOException {
-			return Response.ok().entity(topic).build();
+
+			isActive.put(label1, true);
+			String encodedByteString = convertInputStreamToBase64(textInputStream);
+			TmitocarText tmitoBody = new TmitocarText();
+			tmitoBody.setTopic(topic);
+			tmitoBody.setType(type);
+			tmitoBody.setWordSpec(wordSpec);
+			tmitoBody.setTemplate(template);
+			tmitoBody.setText(encodedByteString);
+			service.compareText(label1, label2, template, tmitoBody);
+
+			byte[] bytes = Base64.decode(encodedByteString);
+			String fname = textFileDetail.getFileName();
+			ObjectId uploaded = service.storeFile(label1 + "-" + fname, bytes);
+			if (uploaded == null) {
+				return Response.status(Status.BAD_REQUEST).entity("Could not store file " + fname).build();
+			}
+			try {
+				textInputStream.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			TmitocarResponse response = new TmitocarResponse(uploaded.toString());
+			Gson g = new Gson();
+			return Response.ok().entity(g.toJson(response)).build();
 		}
 
 		@GET
