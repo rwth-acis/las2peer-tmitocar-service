@@ -48,6 +48,11 @@ set_in_service_config publicKey ${PUBLIC_KEY}
 set_in_service_config lrsURL ${LRS_URL}
 set_in_service_config lrsAuthTokenLeipzig ${LRS_AUTH_TOKEN_LEIPZIG}
 set_in_service_config lrsAuthTokenDresden ${LRS_AUTH_TOKEN_DRESDEN}
+set_in_service_config mongoHost ${MONGO_HOST}
+set_in_service_config mongoDB ${MONGO_DB}
+set_in_service_config mongoUser ${MONGO_USER}
+set_in_service_config mongoPassword ${MONGO_PASSWORD}
+set_in_service_config mongoAuth ${MONGO_AUTH}
 
 # prevent glob expansion in lib/*
 set -f

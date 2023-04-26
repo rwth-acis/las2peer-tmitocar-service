@@ -4,6 +4,7 @@ public class TmitocarText {
 	private String text;
 	private String type;
 	private String topic;
+	private String template;
 	private String wordSpec;
 
 	public String getText() {
@@ -29,6 +30,15 @@ public class TmitocarText {
 	public void setTopic(String topic) {
 		this.topic = topic;
 	}
+
+	public String getTemplate() {
+		return template;
+	}
+
+	public void setTemplate(String template) {
+		this.template = template;
+	}
+
 
 	public String getWordSpec() {
 		return wordSpec;

@@ -21,15 +21,13 @@ archiva_credentials.xml
 /bin/
 # Ignore Gradle project-specific cache directory
 .gradle
-
 # Ignore Gradle build output directory
 build
 *.class
 .project
-bin/start_network.bat
-bin/start_network.sh
 las2peer-tmitocar-service/.project
-las2peer-tmitocar-service/.project
+las2peer-tmitocar-service/export/jars/*.jar
+las2peer-tmitocar-service/.classpath
+las2peer-tmitocar-service/.settings/org.eclipse.jdt.core.prefs
+.vscode/settings.json
 .project
-bin/start_network.bat
-bin/start_network.sh
