@@ -1293,7 +1293,7 @@ public class TmitocarService extends RESTService {
 
 						// generate feedback
 						ProcessBuilder pb2 = new ProcessBuilder("bash", "feedback_single.sh", "-s", "-o", "pdf", "-i",
-								"texts/" + user + "/text-modell" + ".svg", "-t", "templates/" + template);
+								"texts/" + user + "/"+user+"-modell" + ".svg", "-t", "templates/" + template);
 						pb2.inheritIO();
 						pb2.directory(new File("tmitocar"));
 						Process process2 = pb2.start();
@@ -1478,9 +1478,9 @@ public class TmitocarService extends RESTService {
 				System.out.println("Storing PDF to mongodb...");
 				try {
 					byte[] pdfByte = Files.readAllBytes(
-							Paths.get("tmitocar/texts/" + label1 + "/" + "text-modell" + ".pdf"));
+							Paths.get("tmitocar/texts/" + label1 + "/" + label1 +"-modell" + ".pdf"));
 					fileId = service.storeFile(label1+"-feedback.pdf", pdfByte);
-					Files.delete(Paths.get("tmitocar/texts/" + label1 + "/" + "text-modell" + ".pdf"));
+					Files.delete(Paths.get("tmitocar/texts/" + label1 + "/" +label1+ "-modell" + ".pdf"));
 				} catch (Exception e) {
 					e.printStackTrace();
 					System.out.println("Failed storing PDF.");
