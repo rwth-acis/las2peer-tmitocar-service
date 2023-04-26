@@ -125,6 +125,10 @@ build.dependsOn copyJar
 build.dependsOn copyToLib
 
 task startscripts {
+    def binDir = new File("$rootDir/bin")
+    if (!binDir.exists()) {
+        binDir.mkdirs()
+    }
     def file = new File("$rootDir/bin/start_network.sh")
     if (!file.exists()) {
         file.createNewFile()
