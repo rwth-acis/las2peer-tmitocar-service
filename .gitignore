@@ -24,3 +24,12 @@ archiva_credentials.xml
 
 # Ignore Gradle build output directory
 build
+*.class
+.project
+bin/start_network.bat
+bin/start_network.sh
+las2peer-tmitocar-service/.project
+las2peer-tmitocar-service/.project
+.project
+bin/start_network.bat
+bin/start_network.sh
