@@ -355,15 +355,15 @@ public class TmitocarService extends RESTService {
 					String textContent = "";
 					// problem here with the file name no? I mean if two threads do this, we will
 					// have one file overwriting the other?
-					String fileName = "text.txt";
+					String fileName = user+".txt";
 					System.out.println("Write File");
 					String type = body.getType();
 					String wordspec = body.getWordSpec();
 
 					if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
-						fileName = "text.txt";
+						fileName = user+".txt";
 					} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
-						fileName = "text.pdf";
+						fileName = user+".pdf";
 					}
 					File f = new File("tmitocar/texts/" + user + "/" + fileName);
 					try {
@@ -1320,89 +1320,6 @@ public class TmitocarService extends RESTService {
 		}
 	}
 
-	// only analyzes and generates feedback for one text, without comparison
-	@POST
-	@Path("/analyzeSingleText")
-	@Consumes(MediaType.TEXT_PLAIN)
-	@Produces(MediaType.APPLICATION_JSON)
-	@ApiOperation(value = "REPLACE THIS WITH AN APPROPRIATE FUNCTION NAME", notes = "REPLACE THIS WITH YOUR NOTES TO THE FUNCTION")
-	@ApiResponses(value = {
-			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "REPLACE THIS WITH YOUR OK MESSAGE") })
-	public Response analyzeSingleText(String body) throws ParseException, IOException {
-		JSONObject jsonBody = new JSONObject();
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		jsonBody = (JSONObject) p.parse(body);
-		String channel = jsonBody.get("channel").toString();
-		String errorMessage = "";
-		try {
-			errorMessage = jsonBody.get("submissionFailed").toString();
-		} catch (NullPointerException e) {
-			errorMessage = "Fehler";
-		}
-
-		String topic = jsonBody.get("topic").toString();
-		String template = jsonBody.get("template").toString();
-
-		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic(topic);
-		tmitoBody.setType(jsonBody.get("fileType").toString());
-		tmitoBody.setWordSpec("1200");
-		tmitoBody.setText(jsonBody.get("fileBody").toString());
-		processSingleText(channel, jsonBody.get("fileName").toString(), template, // "template_ddmz_single.md",
-				tmitoBody);
-		boolean isActive = true;
-		while (isActive) {
-			isActive = this.isActive.get(channel);
-			// isActive = Boolean.parseBoolean(result.getResponse());
-			System.out.println(isActive);
-			try {
-				Thread.sleep(1000);
-			} catch (Exception e) {
-				jsonBody.put("text", "Exception ist passiert " + e.toString());
-				e.printStackTrace();
-			}
-		}
-
-		JSONObject response = new JSONObject();
-		if (userTexts.get(channel) != null) {
-			System.out.println("converging pdf to base64");
-			try {
-				byte[] pdfByte = Files.readAllBytes(
-						Paths.get("tmitocar/texts/" + channel + "/" + "text-modell" + ".pdf"));
-				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
-				response.put("fileBody", fileBody);
-				response.put("fileType", "pdf");
-				response.put("fileName", "Feedback");
-				userTexts.remove(channel);
-				System.out.println("finished conversion from pdf to base64");
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.println("failed conversion from pdf to base64");
-			}
-		}
-		errorMessage = "";
-		if ((userError.get(channel) != null && !userError.get(channel))
-				|| response.get("fileBody") == null) {
-			if (jsonBody.get("submissionFailed") != null) {
-				errorMessage = replaceUmlaute(jsonBody.get("submissionFailed").toString());
-			} else {
-				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
-			}
-			System.out.println("Removing User from Errorlist1");
-			userError.remove(channel);
-		} else {
-			if (jsonBody.get("submissionSucceeded") != null)
-				errorMessage = replaceUmlaute(jsonBody.get("submissionSucceeded").toString());
-			System.out.println("Removing User from Errorlist2");
-			if (userError.get(channel) != null) {
-				userError.remove(channel);
-			}
-		}
-		// System.out.println("response is " + response);
-		response.put("text", errorMessage);
-		return Response.ok().entity(response).build();
-	}
-
 	@Api(value = "Feedback Resource")
 	@SwaggerDefinition(info = @Info(title = "todo", version = "1.0.0", description = "todo.", termsOfService = "", contact = @Contact(name = "Alexander Tobias Neumann", url = "", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "", url = "")))
 	@Path("/feedback")
@@ -1560,12 +1477,37 @@ public class TmitocarService extends RESTService {
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "compareText", notes = "Returns compared text report (PDF)")
-		public Response getComparedText(@PathParam("label1") String label1) throws ParseException, IOException {
+		public Response getComparedText(@PathParam("label1") String label1,@PathParam("label2") String label2) throws ParseException, IOException {
 			if (isActive.get(label1)) {
 				return Response.status(Status.BAD_REQUEST).entity("User: " + label1 + " currently busy.").build();
 			}
-			// TODO get fileid from mongodb
-			return Response.ok().entity("TODO").build();
+			JSONObject err = new JSONObject();
+			ObjectId fileId = null;
+			if (userTexts.get(label1) != null) {
+				System.out.println("Storing PDF to mongodb...");
+				try {
+					byte[] pdfByte = Files.readAllBytes(
+							Paths.get("tmitocar/texts/" + label1 + "/" + label1 +"-modell" + ".pdf"));
+					fileId = service.storeFile(label1+"-feedback.pdf", pdfByte);
+					Files.delete(Paths.get("tmitocar/texts/" + label1 + "/" +label1+ "-modell" + ".pdf"));
+				} catch (Exception e) {
+					e.printStackTrace();
+					System.out.println("Failed storing PDF.");
+				}
+			}else{
+				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build(); 
+			}
+			
+			System.out.println("Removing User from Errorlist");
+			userError.remove(label1);
+			if(fileId==null){
+				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build(); 
+			}
+			TmitocarResponse response = new TmitocarResponse(null, fileId.toString());
+			Gson g = new Gson();
+			return Response.ok().entity(g.toJson(response)).build();
 		}
 	}
 
