@@ -658,9 +658,9 @@ public class TmitocarService extends RESTService {
 		ObjectId fileId = null;
 		try {
 			byte[] pdfByte = Files.readAllBytes(
-					Paths.get(fileName));
+					Paths.get("tmitocar/"+fileName));
 					fileId = storeFile(fileName, pdfByte);
-			Files.delete(Paths.get(fileName));
+			Files.delete(Paths.get("tmitocar/"+fileName));
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.out.println("Failed storing PDF.");
