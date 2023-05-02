@@ -121,6 +121,7 @@ public class TmitocarService extends RESTService {
 	protected void initResources() {
 		getResourceConfig().register(this);
 		getResourceConfig().register(Feedback.class);
+		getResourceConfig().register(TMitocarText.class);
 	}
 
 	private void initVariables() {
@@ -276,6 +277,7 @@ public class TmitocarService extends RESTService {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
+
 					storeFileLocally(label1, body.getText(), body.getType());
 
 					System.out.println("Upload text");
@@ -284,9 +286,10 @@ public class TmitocarService extends RESTService {
 						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o
 						// json -s -S
 						String wordspec = body.getWordSpec();
-						uploadToTmitocar(label1, label2, label1, wordspec);
+						String fileName = createFileName(label1, body.getType());
+						uploadToTmitocar(label1, label2, fileName, wordspec);
 
-						createSingleModel(label1, label2, label1, wordspec);
+						createSingleModel(label1, label2, fileName, wordspec);
 
 						System.out.println("compare with expert");
 						// compare with expert text
@@ -335,16 +338,12 @@ public class TmitocarService extends RESTService {
 					String textContent = "";
 					// problem here with the file name no? I mean if two threads do this, we will
 					// have one file overwriting the other?
-					String fileName = user + ".txt";
-					System.out.println("Write File");
 					String type = body.getType();
+					String fileName = createFileName(user,type);
+					System.out.println("Write File");
 					String wordspec = body.getWordSpec();
 
-					if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
-						fileName = user + ".txt";
-					} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
-						fileName = user + ".pdf";
-					}
+					
 					File f = new File("tmitocar/texts/" + user + "/" + fileName);
 					try {
 						boolean b = f.getParentFile().mkdirs();
@@ -725,18 +724,22 @@ public class TmitocarService extends RESTService {
 
 	}
 
+	private String createFileName(String name, String type){
+		if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
+			return name + ".txt";
+		} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
+			return name + ".pdf";
+		}
+		return name + "txt";
+	}
+
 	private boolean storeFileLocally(String name, String text, String type) {
 		String textContent = "";
 		// problem here with the file name no? I mean if two threads do this, we will
 		// have one file overwriting the other?
-		String fileName = name + ".txt";
+		String fileName = createFileName(name, type);
 		System.out.println("Write File");
 
-		if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
-			fileName = name + ".txt";
-		} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
-			fileName = name + ".pdf";
-		}
 		File f = new File("tmitocar/texts/" + name + "/" + fileName);
 		try {
 			boolean b = f.getParentFile().mkdirs();
