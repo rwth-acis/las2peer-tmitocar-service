@@ -596,8 +596,8 @@ public class TmitocarService extends RESTService {
 			ObjectId graphFileId = null;
 			if (userTexts.get(label1) != null) {
 				System.out.println("Storing PDF to mongodb...");
-				feedbackFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_ " + label2 + ".json");
-				graphFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_ " + label2 + ".pdf");
+				feedbackFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json");
+				graphFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf");
 
 			} else {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
