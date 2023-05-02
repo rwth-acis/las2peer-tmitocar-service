@@ -188,41 +188,19 @@ public class TmitocarService extends RESTService {
 		}
 	}
 
-	private void uploadToTmitocar(String label1, String label2, String fileName, String wordspec)
+	private void uploadToTmitocar(String label1, String fileName, String wordspec)
 			throws InterruptedException, IOException {
 		ProcessBuilder pb;
 		if (wordspec != null && wordspec.length() > 2) {
 			System.out.println("Using wordspec: " + wordspec);
 			pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
 					"texts/" + label1 + "/" + fileName,
-					"-l", label1 + label2, "-o", "json", "-S", "-w", wordspec);
+					"-l", label1, "-o", "json", "-S", "-w", wordspec);
 
 		} else {
 			pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
 					"texts/" + label1 + "/" + fileName,
-					"-l", label1 + label2, "-o", "json", "-S");
-		}
-
-		pb.inheritIO();
-		pb.directory(new File("tmitocar"));
-		Process p = pb.start();
-		p.waitFor();
-	}
-
-	private void createSingleModel(String label1, String label2, String fileName, String wordspec)
-			throws InterruptedException, IOException {
-		ProcessBuilder pb;
-		System.out.println("create single model");
-		if (wordspec != null && wordspec.length() > 2) {
-			System.out.println("Using wordspec: " + wordspec);
-			pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-					"texts/" + label1 + "/" + fileName,
-					"-l", label1 + label2 + "json", "-o", "json", "-w", wordspec);
-
-		} else {
-			pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-					"texts/" + label1 + "/" + fileName,
-					"-l", label1 + label2 + "json", "-o", "json");
+					"-l", label1, "-o", "json", "-S");
 		}
 
 		pb.inheritIO();
@@ -232,8 +210,8 @@ public class TmitocarService extends RESTService {
 	}
 
 	private void createComparison(String label1, String label2) throws InterruptedException, IOException {
-		ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", label2, "-c",
-				label1 + label2, "-o", "json", "-T");
+		ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", label1, "-c",
+				label2, "-o", "json", "-T");
 		pb2.inheritIO();
 		pb2.directory(new File("tmitocar"));
 		Process process2 = pb2.start();
@@ -243,7 +221,7 @@ public class TmitocarService extends RESTService {
 	private void generateFeedback(String label1, String label2, String template, String topic)
 			throws InterruptedException, IOException {
 		ProcessBuilder pb = new ProcessBuilder("bash", "feedback.sh", "-s", "-o", "pdf", "-i",
-				"comparison_" + label2 + "_vs_" + label1 + label2 + ".json", "-t",
+				"comparison_" + label1 + "_vs_" + label2 + ".json", "-t",
 				"templates/" + template, "-S", topic);
 		pb.inheritIO();
 		pb.directory(new File("tmitocar"));
@@ -284,9 +262,7 @@ public class TmitocarService extends RESTService {
 						// json -s -S
 						String wordspec = body.getWordSpec();
 						String fileName = createFileName(label1, body.getType());
-						uploadToTmitocar(label1, label2, fileName, wordspec);
-
-						createSingleModel(label1, label2, fileName, wordspec);
+						uploadToTmitocar(label1, fileName, wordspec);
 
 						System.out.println("compare with expert");
 						// compare with expert text
@@ -369,7 +345,7 @@ public class TmitocarService extends RESTService {
 
 					System.out.println("Upload text");
 					try {
-						uploadToTmitocar(user, expert, fileName, wordspec);
+						uploadToTmitocar(user, fileName, wordspec);
 
 						System.out.println("gen feedback");
 
@@ -415,7 +391,7 @@ public class TmitocarService extends RESTService {
 		@Consumes(MediaType.MULTIPART_FORM_DATA)
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
-		@ApiOperation(value = "compareText", notes = "Analyzes a text and generates a PDF report")
+		@ApiOperation(value = "analyzeText", notes = "Analyzes a text and generates a PDF report")
 		public Response analyzeText(@PathParam("label1") String label1,
 				@FormDataParam("text") InputStream textInputStream,
 				@FormDataParam("text") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
@@ -476,7 +452,7 @@ public class TmitocarService extends RESTService {
 		@Consumes(MediaType.MULTIPART_FORM_DATA)
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
-		@ApiOperation(value = "compareText", notes = "Analyzes a text and generates a PDF report")
+		@ApiOperation(value = "analyzeText", notes = "Analyzes a text and generates a PDF report")
 		public Response analyzeText(@PathParam("label1") String label1,
 				@FormDataParam("text") InputStream textInputStream,
 				@FormDataParam("text") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
