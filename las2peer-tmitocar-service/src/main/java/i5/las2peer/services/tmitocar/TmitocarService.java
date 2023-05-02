@@ -6,11 +6,8 @@ import java.io.FileWriter;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigInteger;
 import java.net.HttpURLConnection;
 import java.nio.file.Files;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.logging.Level;
 import javax.ws.rs.Consumes;
@@ -301,8 +298,7 @@ public class TmitocarService extends RESTService {
 						// generate feedback
 						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
 						generateFeedback(label1, label2, template, body.getTopic());
-
-						deleteFileLocally(label1);
+						
 						// TODO
 						isActive.put(label1, false);
 					} catch (IOException e) {
@@ -620,28 +616,27 @@ public class TmitocarService extends RESTService {
 				return Response.status(Status.BAD_REQUEST).entity("User: " + label1 + " currently busy.").build();
 			}
 			JSONObject err = new JSONObject();
-			ObjectId fileId = null;
+			ObjectId feedbackFileId = null;
+			ObjectId graphFileId = null;
 			if (userTexts.get(label1) != null) {
 				System.out.println("Storing PDF to mongodb...");
-				try {
-					byte[] pdfByte = Files.readAllBytes(
-							Paths.get("tmitocar/texts/" + label1 + "/" + label1 + "-modell" + ".pdf"));
-					fileId = service.storeFile(label1 + "-feedback.pdf", pdfByte);
-					Files.delete(Paths.get("tmitocar/texts/" + label1 + "/" + label1 + "-modell" + ".pdf"));
-				} catch (Exception e) {
-					e.printStackTrace();
-					System.out.println("Failed storing PDF.");
-				}
+				feedbackFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_ " + label2 + ".json");
+				graphFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_ " + label2 + ".pdf");
+
 			} else {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
 
-			if (fileId == null) {
+			if (feedbackFileId == null) {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
-			TmitocarResponse response = new TmitocarResponse(null, fileId.toString());
+			if (graphFileId == null) {
+				err.put("errorMessage", "Something went wrong storing the graph for " + label1);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
+			}
+			TmitocarResponse response = new TmitocarResponse(null, feedbackFileId.toString(),graphFileId.toString());
 			Gson g = new Gson();
 			return Response.ok().entity(g.toJson(response)).build();
 		}
@@ -679,6 +674,20 @@ public class TmitocarService extends RESTService {
 		} finally {
 			// Close MongoDB client
 			mongoClient.close();
+		}
+		return fileId;
+	}
+
+	private ObjectId storeLocalFileRemote(String fileName){
+		ObjectId fileId = null;
+		try {
+			byte[] pdfByte = Files.readAllBytes(
+					Paths.get(fileName));
+					fileId = storeFile(fileName, pdfByte);
+			Files.delete(Paths.get(fileName));
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.out.println("Failed storing PDF.");
 		}
 		return fileId;
 	}
@@ -781,7 +790,7 @@ public class TmitocarService extends RESTService {
 	}
 
 	private void deleteFileLocally(String name){
-		
+		// or should we delete the user folder afterwards? 
 		try {
 			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name+".txt"));
 		} catch (IOException e) {
