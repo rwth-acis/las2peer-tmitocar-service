@@ -75,7 +75,7 @@ import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
  * 
  */
 @Api
-@SwaggerDefinition(info = @Info(title = "las2peer tmitocar Service", version = "1.0.0", description = "A las2peer tmitocar Service for evaluating texts.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+@SwaggerDefinition(info = @Info(title = "las2peer tmitocar Service", version = "1.0.0", description = "A las2peer tmitocar wrapper service for analyzing/evaluating texts.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
 @ManualDeployment
 @ServicePath("/tmitocar")
 public class TmitocarService extends RESTService {
@@ -218,15 +218,20 @@ public class TmitocarService extends RESTService {
 		process2.waitFor();
 	}
 
-	private void generateFeedback(String label1, String label2, String template, String topic)
+	private void generateFeedback(String label1, String label2, String template, String topic, String scriptFile)
 			throws InterruptedException, IOException {
-		ProcessBuilder pb = new ProcessBuilder("bash", "feedback.sh", "-s", "-o", "pdf", "-i",
+		ProcessBuilder pb = new ProcessBuilder("bash", scriptFile, "-s", "-o", "pdf", "-i",
 				"comparison_" + label1 + "_vs_" + label2 + ".json", "-t",
 				"templates/" + template, "-S", topic);
 		pb.inheritIO();
 		pb.directory(new File("tmitocar"));
 		Process p = pb.start();
 		p.waitFor();
+	}
+
+	private void generateFeedback(String label1, String label2, String template, String topic)
+			throws InterruptedException, IOException {
+		generateFeedback(label1, label2, template, topic, "feedback.sh");
 	}
 
 	/**
@@ -240,14 +245,12 @@ public class TmitocarService extends RESTService {
 	 */
 	public boolean compareText(@PathParam("label1") String label1, @PathParam("label2") String label2,
 			@PathParam("template") String template, TmitocarText body) {
-		// TODO Handle pdfs
 		isActive.put(label1, true);
 		JSONObject j = new JSONObject();
 		j.put("user", label1);
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
 		System.out.println("Block " + label1);
 
-		// TODO Handle pdfs
 		try {
 			new Thread(new Runnable() {
 				@Override
@@ -257,32 +260,24 @@ public class TmitocarService extends RESTService {
 
 					System.out.println("Upload text");
 					try {
-						// Store usertext cwith label
-						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o
-						// json -s -S
+						// Store usertext with label
 						String wordspec = body.getWordSpec();
 						String fileName = createFileName(label1, body.getType());
 						uploadToTmitocar(label1, fileName, wordspec);
 
-						System.out.println("compare with expert");
+						System.out.println("Compare with expert.");
 						// compare with expert text
-						// bash tmitocar.sh -l usertext -c expert1 -T -s -o json
-
 						createComparison(label1, label2);
-						System.out.println("gen feedback");
 
+						System.out.println("Generate feedback.");
 						// generate feedback
-						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
 						generateFeedback(label1, label2, template, body.getTopic());
-						
-						// TODO
+
 						isActive.put(label1, false);
 					} catch (IOException e) {
 						e.printStackTrace();
-						// userError.put(user, false);
 						isActive.put(label1, false);
 					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 						isActive.put(label1, false);
 					}
@@ -296,7 +291,6 @@ public class TmitocarService extends RESTService {
 	}
 
 	public Response processSingleText(String user, String expert, String template, TmitocarText body) {
-		// TODO Handle pdfs
 		isActive.put(user, true);
 		JSONObject j = new JSONObject();
 		j.put("user", user);
@@ -308,14 +302,11 @@ public class TmitocarService extends RESTService {
 				@Override
 				public void run() {
 					String textContent = "";
-					// problem here with the file name no? I mean if two threads do this, we will
-					// have one file overwriting the other?
 					String type = body.getType();
-					String fileName = createFileName(user,type);
+					String fileName = createFileName(user, type);
 					System.out.println("Write File");
 					String wordspec = body.getWordSpec();
 
-					
 					File f = new File("tmitocar/texts/" + user + "/" + fileName);
 					try {
 						boolean b = f.getParentFile().mkdirs();
@@ -350,13 +341,12 @@ public class TmitocarService extends RESTService {
 						System.out.println("gen feedback");
 
 						// generate feedback
-						generateFeedback(user, expert, template, body.getTopic());
+						generateFeedback(user, expert, template, body.getTopic(), "feedback_single.sh");
 						isActive.put(user, false);
 					} catch (IOException e) {
 						e.printStackTrace();
 						isActive.put(user, false);
 					} catch (InterruptedException e1) {
-						// TODO Auto-generated catch block
 						e1.printStackTrace();
 					}
 				}
@@ -365,12 +355,15 @@ public class TmitocarService extends RESTService {
 		} catch (Exception e) {
 			e.printStackTrace();
 			isActive.put(user, false);
-			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+			JSONObject err = new JSONObject();
+			err.put("errorMessage", e.getMessage());
+			err.put("error", true);
+			return Response.status(Status.BAD_REQUEST).entity(err.toString()).build();
 		}
 	}
 
 	@Api(value = "Text Resource")
-	@SwaggerDefinition(info = @Info(title = "todo", version = "1.0.0", description = "todo.", termsOfService = "", contact = @Contact(name = "Alexander Tobias Neumann", url = "", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "", url = "")))
+	@SwaggerDefinition(info = @Info(title = "Text Resource", version = "1.0.0", description = "This API is responsible for storing a text file on the T-MITOCAR server for later use as a comparison text.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
 	@Path("/text")
 	public static class TMitocarText {
 		TmitocarService service = (TmitocarService) Context.get().getService();
@@ -382,7 +375,7 @@ public class TmitocarService extends RESTService {
 		 * @param textInputStream the InputStream containing the text to compare
 		 * @param textFileDetail  the file details of the text file
 		 * @param type            the type of text (txt or pdf)
-		 * @return todo
+		 * @return id of the stored file
 		 * @throws ParseException if there is an error parsing the input parameters
 		 * @throws IOException    if there is an error reading the input stream
 		 */
@@ -428,7 +421,7 @@ public class TmitocarService extends RESTService {
 	}
 
 	@Api(value = "Feedback Resource")
-	@SwaggerDefinition(info = @Info(title = "todo", version = "1.0.0", description = "todo.", termsOfService = "", contact = @Contact(name = "Alexander Tobias Neumann", url = "", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "", url = "")))
+	@SwaggerDefinition(info = @Info(title = "Feedback Resource", version = "1.0.0", description = "This API is responsible for handling text documents in txt or pdf format and sending them to T-MITOCAR for processing. The feedback is then saved in a MongoDB and the document IDs are returned.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
 	@Path("/feedback")
 	public static class Feedback {
 		TmitocarService service = (TmitocarService) Context.get().getService();
@@ -443,7 +436,7 @@ public class TmitocarService extends RESTService {
 		 * @param topic           the topic of the text (e.g. BiWi 5)
 		 * @param template        the template to use for the PDF report
 		 * @param wordSpec        the word specification for the PDF report
-		 * @return todo
+		 * @return the id of the stored file
 		 * @throws ParseException if there is an error parsing the input parameters
 		 * @throws IOException    if there is an error reading the input stream
 		 */
@@ -459,7 +452,10 @@ public class TmitocarService extends RESTService {
 				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
 				@FormDataParam("wordSpec") String wordSpec) throws ParseException, IOException {
 			if (isActive.getOrDefault(label1, false)) {
-				return Response.status(Status.BAD_REQUEST).entity("User: " + label1 + " currently busy.").build();
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
 			}
 			isActive.put(label1, true);
 			String encodedByteString = convertInputStreamToBase64(textInputStream);
@@ -493,8 +489,17 @@ public class TmitocarService extends RESTService {
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "compareText", notes = "Returns analyzed text report (PDF)")
 		public Response getAnalyzedText(@PathParam("label1") String label1) throws ParseException, IOException {
-			if (isActive.getOrDefault(label1, false)) {
-				return Response.status(Status.BAD_REQUEST).entity("User: " + label1 + " currently busy.").build();
+			if (!isActive.containsKey(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			if (isActive.get(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
 			}
 			JSONObject err = new JSONObject();
 			ObjectId fileId = null;
@@ -511,11 +516,13 @@ public class TmitocarService extends RESTService {
 				}
 			} else {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error", true);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
 
 			if (fileId == null) {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error", true);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
 			TmitocarResponse response = new TmitocarResponse(null, fileId.toString());
@@ -534,7 +541,7 @@ public class TmitocarService extends RESTService {
 		 * @param topic           the topic of the text (e.g. BiWi 5)
 		 * @param template        the template to use for the PDF report
 		 * @param wordSpec        the word specification for the PDF report
-		 * @return todo
+		 * @return the id of the stored file
 		 * @throws ParseException if there is an error parsing the input parameters
 		 * @throws IOException    if there is an error reading the input stream
 		 */
@@ -549,7 +556,12 @@ public class TmitocarService extends RESTService {
 				@FormDataParam("text") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
 				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
 				@FormDataParam("wordSpec") String wordSpec) throws ParseException, IOException {
-
+			if (isActive.getOrDefault(label1, false)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
 			isActive.put(label1, true);
 			String encodedByteString = convertInputStreamToBase64(textInputStream);
 			TmitocarText tmitoBody = new TmitocarText();
@@ -588,31 +600,43 @@ public class TmitocarService extends RESTService {
 		@ApiOperation(value = "compareText", notes = "Returns compared text report (PDF)")
 		public Response getComparedText(@PathParam("label1") String label1, @PathParam("label2") String label2)
 				throws ParseException, IOException {
+			if (!isActive.containsKey(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
 			if (isActive.get(label1)) {
-				return Response.status(Status.BAD_REQUEST).entity("User: " + label1 + " currently busy.").build();
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
 			}
 			JSONObject err = new JSONObject();
 			ObjectId feedbackFileId = null;
 			ObjectId graphFileId = null;
 			if (userTexts.get(label1) != null) {
 				System.out.println("Storing PDF to mongodb...");
-				feedbackFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json");
-				graphFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf");
+				feedbackFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf");
+				graphFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json");
 
 			} else {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error", true);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
 
 			if (feedbackFileId == null) {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error", true);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
 			if (graphFileId == null) {
 				err.put("errorMessage", "Something went wrong storing the graph for " + label1);
+				err.put("error", true);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
-			TmitocarResponse response = new TmitocarResponse(null, feedbackFileId.toString(),graphFileId.toString());
+			TmitocarResponse response = new TmitocarResponse(null, feedbackFileId.toString(), graphFileId.toString());
 			Gson g = new Gson();
 			return Response.ok().entity(g.toJson(response)).build();
 		}
@@ -654,13 +678,13 @@ public class TmitocarService extends RESTService {
 		return fileId;
 	}
 
-	private ObjectId storeLocalFileRemote(String fileName){
+	private ObjectId storeLocalFileRemote(String fileName) {
 		ObjectId fileId = null;
 		try {
 			byte[] pdfByte = Files.readAllBytes(
-					Paths.get("tmitocar/"+fileName));
-					fileId = storeFile(fileName, pdfByte);
-			Files.delete(Paths.get("tmitocar/"+fileName));
+					Paths.get("tmitocar/" + fileName));
+			fileId = storeFile(fileName, pdfByte);
+			Files.delete(Paths.get("tmitocar/" + fileName));
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.out.println("Failed storing PDF.");
@@ -709,7 +733,7 @@ public class TmitocarService extends RESTService {
 
 	}
 
-	private String createFileName(String name, String type){
+	private String createFileName(String name, String type) {
 		if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
 			return name + ".txt";
 		} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
@@ -765,18 +789,16 @@ public class TmitocarService extends RESTService {
 		return true;
 	}
 
-	private void deleteFileLocally(String name){
-		// or should we delete the user folder afterwards? 
+	private void deleteFileLocally(String name) {
+		// or should we delete the user folder afterwards?
 		try {
-			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name+".txt"));
+			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name + ".txt"));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		try {
-			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name+".pdf"));
+			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name + ".pdf"));
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
