@@ -386,8 +386,8 @@ public class TmitocarService extends RESTService {
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "analyzeText", notes = "Analyzes a text and generates a PDF report")
 		public Response analyzeText(@PathParam("label1") String label1,
-				@FormDataParam("text") InputStream textInputStream,
-				@FormDataParam("text") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
+				@FormDataParam("file") InputStream textInputStream,
+				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
 				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
 				@FormDataParam("wordSpec") String wordSpec) throws ParseException, IOException {
 			if (isActive.getOrDefault(label1, false)) {
@@ -447,8 +447,8 @@ public class TmitocarService extends RESTService {
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "analyzeText", notes = "Analyzes a text and generates a PDF report")
 		public Response analyzeText(@PathParam("label1") String label1,
-				@FormDataParam("text") InputStream textInputStream,
-				@FormDataParam("text") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
+				@FormDataParam("file") InputStream textInputStream,
+				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
 				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
 				@FormDataParam("wordSpec") String wordSpec) throws ParseException, IOException {
 			if (isActive.getOrDefault(label1, false)) {
@@ -487,7 +487,7 @@ public class TmitocarService extends RESTService {
 		@Path("/{label1}")
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
-		@ApiOperation(value = "compareText", notes = "Returns analyzed text report (PDF)")
+		@ApiOperation(value = "getAnalyzedText", notes = "Returns analyzed text report (PDF)")
 		public Response getAnalyzedText(@PathParam("label1") String label1) throws ParseException, IOException {
 			if (!isActive.containsKey(label1)) {
 				JSONObject err = new JSONObject();
@@ -552,8 +552,8 @@ public class TmitocarService extends RESTService {
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "compareText", notes = "Compares two texts and generates a PDF report")
 		public Response compareText(@PathParam("label1") String label1, @PathParam("label2") String label2,
-				@FormDataParam("text") InputStream textInputStream,
-				@FormDataParam("text") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
+				@FormDataParam("file") InputStream textInputStream,
+				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
 				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
 				@FormDataParam("wordSpec") String wordSpec) throws ParseException, IOException {
 			if (isActive.getOrDefault(label1, false)) {
@@ -597,7 +597,7 @@ public class TmitocarService extends RESTService {
 		@Consumes(MediaType.MULTIPART_FORM_DATA)
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
-		@ApiOperation(value = "compareText", notes = "Returns compared text report (PDF)")
+		@ApiOperation(value = "getComparedText", notes = "Returns compared text report (PDF)")
 		public Response getComparedText(@PathParam("label1") String label1, @PathParam("label2") String label2)
 				throws ParseException, IOException {
 			if (!isActive.containsKey(label1)) {
