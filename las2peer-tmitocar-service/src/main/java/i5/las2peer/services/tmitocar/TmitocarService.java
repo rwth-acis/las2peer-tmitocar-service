@@ -218,15 +218,20 @@ public class TmitocarService extends RESTService {
 		process2.waitFor();
 	}
 
-	private void generateFeedback(String label1, String label2, String template, String topic)
+	private void generateFeedback(String label1, String label2, String template, String topic, String scriptFile)
 			throws InterruptedException, IOException {
-		ProcessBuilder pb = new ProcessBuilder("bash", "feedback.sh", "-s", "-o", "pdf", "-i",
+		ProcessBuilder pb = new ProcessBuilder("bash", scriptFile, "-s", "-o", "pdf", "-i",
 				"comparison_" + label1 + "_vs_" + label2 + ".json", "-t",
 				"templates/" + template, "-S", topic);
 		pb.inheritIO();
 		pb.directory(new File("tmitocar"));
 		Process p = pb.start();
 		p.waitFor();
+	}
+
+	private void generateFeedback(String label1, String label2, String template, String topic)
+	throws InterruptedException, IOException {
+		generateFeedback(label1,label2,template,topic,"feedback.sh");
 	}
 
 	/**
@@ -350,7 +355,7 @@ public class TmitocarService extends RESTService {
 						System.out.println("gen feedback");
 
 						// generate feedback
-						generateFeedback(user, expert, template, body.getTopic());
+						generateFeedback(user, expert, template, body.getTopic(),"feedback_single.sh");
 						isActive.put(user, false);
 					} catch (IOException e) {
 						e.printStackTrace();
@@ -365,7 +370,10 @@ public class TmitocarService extends RESTService {
 		} catch (Exception e) {
 			e.printStackTrace();
 			isActive.put(user, false);
-			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+			JSONObject err = new JSONObject();
+			err.put("errorMessage", e.getMessage());
+			err.put("error",true);
+			return Response.status(Status.BAD_REQUEST).entity(err.toString()).build();
 		}
 	}
 
@@ -493,8 +501,17 @@ public class TmitocarService extends RESTService {
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "compareText", notes = "Returns analyzed text report (PDF)")
 		public Response getAnalyzedText(@PathParam("label1") String label1) throws ParseException, IOException {
-			if (isActive.getOrDefault(label1, false)) {
-				return Response.status(Status.BAD_REQUEST).entity("User: " + label1 + " currently busy.").build();
+			if (!isActive.containsKey(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " not found.");
+				err.put("error",true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			if (isActive.get(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error",true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
 			}
 			JSONObject err = new JSONObject();
 			ObjectId fileId = null;
@@ -511,11 +528,13 @@ public class TmitocarService extends RESTService {
 				}
 			} else {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error",true);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
 
 			if (fileId == null) {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error",true);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
 			TmitocarResponse response = new TmitocarResponse(null, fileId.toString());
@@ -588,28 +607,40 @@ public class TmitocarService extends RESTService {
 		@ApiOperation(value = "compareText", notes = "Returns compared text report (PDF)")
 		public Response getComparedText(@PathParam("label1") String label1, @PathParam("label2") String label2)
 				throws ParseException, IOException {
+			if (!isActive.containsKey(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " not found.");
+				err.put("error",true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
 			if (isActive.get(label1)) {
-				return Response.status(Status.BAD_REQUEST).entity("User: " + label1 + " currently busy.").build();
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error",true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
 			}
 			JSONObject err = new JSONObject();
 			ObjectId feedbackFileId = null;
 			ObjectId graphFileId = null;
 			if (userTexts.get(label1) != null) {
 				System.out.println("Storing PDF to mongodb...");
-				feedbackFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json");
-				graphFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf");
+				feedbackFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf");
+				graphFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json");
 
 			} else {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error",true);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
 
 			if (feedbackFileId == null) {
 				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error",true);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
 			if (graphFileId == null) {
 				err.put("errorMessage", "Something went wrong storing the graph for " + label1);
+				err.put("error",true);
 				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
 			}
 			TmitocarResponse response = new TmitocarResponse(null, feedbackFileId.toString(),graphFileId.toString());
