@@ -15,12 +15,20 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.io.FileUtils;
 import org.java_websocket.util.Base64;
 
@@ -50,6 +58,7 @@ import io.swagger.annotations.Contact;
 import io.swagger.annotations.Info;
 import io.swagger.annotations.License;
 import io.swagger.annotations.SwaggerDefinition;
+import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import net.minidev.json.parser.ParseException;
 import org.apache.pdfbox.pdfparser.PDFParser;
@@ -94,6 +103,14 @@ public class TmitocarService extends RESTService {
 	private String mongoUri;
 	private String mongoAuth = "admin";
 
+	private String pgsqlHost;
+	private String pgsqlPort;
+	private String pgsqlUser;
+	private String pgsqlPassword;
+	private String pgsqlDB;
+
+	private static BasicDataSource dataSource;
+
 	private final static String AUTH_FILE = "tmitocar/auth.json";
 
 	// This is the constructor of the TmitocarService class.
@@ -119,6 +136,7 @@ public class TmitocarService extends RESTService {
 		getResourceConfig().register(this);
 		getResourceConfig().register(Feedback.class);
 		getResourceConfig().register(TMitocarText.class);
+		getResourceConfig().register(WritingTask.class);
 	}
 
 	private void initVariables() {
@@ -186,7 +204,23 @@ public class TmitocarService extends RESTService {
 		} finally {
 			mongoClient.close();
 		}
+		// postgresql 
+		if (dataSource == null) {
+            dataSource = new BasicDataSource();
+            dataSource.setDriverClassName("org.postgresql.Driver");
+            dataSource.setUrl("jdbc:postgresql://"+pgsqlHost+":"+pgsqlPort+"/"+pgsqlDB);
+            dataSource.setUsername(pgsqlUser);
+            dataSource.setPassword(pgsqlPassword);
+
+            // Set connection pool properties
+            dataSource.setInitialSize(5);
+            dataSource.setMaxTotal(10);
+        }
 	}
+
+	protected Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
+    }
 
 	private void uploadToTmitocar(String label1, String fileName, String wordspec)
 			throws InterruptedException, IOException {
@@ -360,6 +394,139 @@ public class TmitocarService extends RESTService {
 			err.put("error", true);
 			return Response.status(Status.BAD_REQUEST).entity(err.toString()).build();
 		}
+	}
+
+	@Api(value = "Writing Task Resource")
+	@SwaggerDefinition(info = @Info(title = "Writing Task Resource", version = "1.0.0", description = "Todo.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@Path("/task")
+	public static class WritingTask {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+
+		@GET
+		@Path("/")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAllTasks", notes = "Returns all writing tasks")
+		public Response getWritingTasks(@QueryParam("courseId") int courseId) {
+			
+			Connection conn = null;
+			PreparedStatement stmt = null;
+			ResultSet rs = null;
+			JSONArray jsonArray = new JSONArray();
+			String chatMessage = "";
+			try {
+				conn = service.getConnection();
+				if (courseId == 0) {
+					stmt = conn.prepareStatement("SELECT * FROM writingtask");
+				} else {
+					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE courseid = ?");
+					stmt.setInt(1, courseId);
+				}
+				rs = stmt.executeQuery();
+
+				while (rs.next()) {
+					courseId = rs.getInt("courseid");
+					int nr = rs.getInt("nr");
+					String text = rs.getString("text");
+					String title = rs.getString("title");
+
+					JSONObject jsonObject = new JSONObject();
+					jsonObject.put("courseId", courseId);
+					jsonObject.put("nr", nr);
+					jsonObject.put("text", text);
+					jsonObject.put("title", title);
+
+					jsonArray.add(jsonObject);
+					chatMessage += nr+": "+title+"\n<br>\n";
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} finally {
+				try {
+					if (rs != null) {
+						rs.close();
+					}
+					if (stmt != null) {
+						stmt.close();
+					}
+					if (conn != null) {
+						conn.close();
+					}
+				} catch (SQLException ex) {
+					System.out.println(ex.getMessage());
+				}
+			}
+			JSONObject response = new JSONObject();
+			response.put("data", jsonArray);
+			response.put("chatMessage", chatMessage);
+			return Response.ok().entity(response.toString()).build();
+		}
+
+
+		@GET
+		@Path("/{tasknr}")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAllTasks", notes = "Returns writing task by id")
+		public Response getWritingTaskByNr(@PathParam("tasknr") int tasknr, @QueryParam("courseId") int courseId) {
+			
+			Connection conn = null;
+			PreparedStatement stmt = null;
+			ResultSet rs = null;
+			JSONArray jsonArray = new JSONArray();
+			String chatMessage = "";
+			try {
+				conn = service.getConnection();
+				if (courseId == 0) {
+					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE nr = ?");
+					stmt.setInt(1, tasknr);
+				} else {
+					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE nr = ? AND courseid = ?");
+					stmt.setInt(1, tasknr);
+					stmt.setInt(2, courseId);
+				}
+				rs = stmt.executeQuery();
+
+				while (rs.next()) {
+					courseId = rs.getInt("courseid");
+					int nr = rs.getInt("nr");
+					String text = rs.getString("text");
+					String title = rs.getString("title");
+
+					JSONObject jsonObject = new JSONObject();
+					jsonObject.put("courseId", courseId);
+					jsonObject.put("nr", nr);
+					jsonObject.put("text", text);
+					jsonObject.put("title", title);
+
+					jsonArray.add(jsonObject);
+					chatMessage += nr+": "+title+"\n<br>\n" + text + "\n<br>";
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} finally {
+				try {
+					if (rs != null) {
+						rs.close();
+					}
+					if (stmt != null) {
+						stmt.close();
+					}
+					if (conn != null) {
+						conn.close();
+					}
+				} catch (SQLException ex) {
+					System.out.println(ex.getMessage());
+				}
+			}
+			JSONObject response = new JSONObject();
+			response.put("data", jsonArray);
+			response.put("chatMessage", chatMessage);
+			return Response.ok().entity(response.toString()).build();
+		}
+
 	}
 
 	@Api(value = "Text Resource")
