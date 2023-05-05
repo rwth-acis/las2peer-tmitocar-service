@@ -1,12 +1,17 @@
 package i5.las2peer.services.tmitocar;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.logging.Level;
@@ -19,7 +24,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -48,6 +52,7 @@ import i5.las2peer.api.logging.MonitoringEvent;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.restMapper.RESTService;
 import i5.las2peer.restMapper.annotations.ServicePath;
+import i5.las2peer.services.tmitocar.pojo.LrsCredentials;
 import i5.las2peer.services.tmitocar.pojo.TmitocarResponse;
 import i5.las2peer.services.tmitocar.pojo.TmitocarText;
 import io.swagger.annotations.Api;
@@ -60,6 +65,7 @@ import io.swagger.annotations.License;
 import io.swagger.annotations.SwaggerDefinition;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
+import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
 import org.apache.pdfbox.pdfparser.PDFParser;
 import org.bson.BsonDocument;
@@ -617,7 +623,7 @@ public class TmitocarService extends RESTService {
 				@FormDataParam("file") InputStream textInputStream,
 				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
 				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
-				@FormDataParam("wordSpec") String wordSpec) throws ParseException, IOException {
+				@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId) throws ParseException, IOException {
 			if (isActive.getOrDefault(label1, false)) {
 				JSONObject err = new JSONObject();
 				err.put("errorMessage", "User: " + label1 + " currently busy.");
@@ -646,6 +652,15 @@ public class TmitocarService extends RESTService {
 				e.printStackTrace();
 			}
 			TmitocarResponse response = new TmitocarResponse(uploaded.toString());
+			String uuid = service.getUuidByEmail(email);
+			if (uuid!=null){
+				// user has accepted
+				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
+				if(lrsCredentials!=null){
+					JSONObject xapi = service.prepareXapiStatement(uuid, topic, courseId, uploaded.toString());
+					service.sendXAPIStatement(xapi, uuid);
+				}
+			}
 			Gson g = new Gson();
 			return Response.ok().entity(g.toJson(response)).build();
 		}
@@ -722,7 +737,7 @@ public class TmitocarService extends RESTService {
 				@FormDataParam("file") InputStream textInputStream,
 				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
 				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
-				@FormDataParam("wordSpec") String wordSpec) throws ParseException, IOException {
+				@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId) throws ParseException, IOException {
 			if (isActive.getOrDefault(label1, false)) {
 				JSONObject err = new JSONObject();
 				err.put("errorMessage", "User: " + label1 + " currently busy.");
@@ -755,6 +770,16 @@ public class TmitocarService extends RESTService {
 				e.printStackTrace();
 			}
 			TmitocarResponse response = new TmitocarResponse(uploaded.toString());
+
+			String uuid = service.getUuidByEmail(email);
+			if (uuid!=null){
+				// user has accepted
+				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
+				if(lrsCredentials!=null){
+					JSONObject xapi = service.prepareXapiStatement(uuid, topic, courseId, uploaded.toString());
+					service.sendXAPIStatement(xapi, uuid);
+				}
+			}
 			Gson g = new Gson();
 			return Response.ok().entity(g.toJson(response)).build();
 		}
@@ -968,6 +993,129 @@ public class TmitocarService extends RESTService {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private void sendXAPIStatement(JSONObject xAPI, String lrsAuthToken) {
+		// Copy pasted from LL service
+		// POST statements
+		try {
+			URL url = new URL(lrsURL + "/data/xAPI/statements");
+			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+			conn.setDoOutput(true);
+			conn.setDoInput(true);
+			conn.setRequestMethod("POST");
+			conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+			conn.setRequestProperty("X-Experience-API-Version", "1.0.3");
+			conn.setRequestProperty("Authorization", "Basic " + lrsAuthToken);
+			conn.setRequestProperty("Cache-Control", "no-cache");
+			conn.setUseCaches(false);
+
+			OutputStream os = conn.getOutputStream();
+			os.write(xAPI.toString().getBytes("utf-8"));
+			os.flush();
+
+			BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+			String line = "";
+			StringBuilder response = new StringBuilder();
+
+			while ((line = reader.readLine()) != null) {
+				response.append(line);
+			}
+			logger.info(response.toString());
+
+			conn.disconnect();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	private String getUuidByEmail(String email){
+		String res = null;
+		try (Connection conn = getConnection();
+			PreparedStatement pstmt = conn.prepareStatement("SELECT uuid FROM personmapping WHERE email = ?")) {
+
+			// Set the email parameter in the prepared statement
+			pstmt.setString(1, email);
+
+			// Execute the query and retrieve the result set
+			try (ResultSet rs = pstmt.executeQuery()) {
+
+				// If the email exists in the table, the result set will contain one row with the UUID
+				if (rs.next()) {
+					res = rs.getString("uuid");
+				} else {
+					System.out.println("No UUID found for " + email);
+				}
+			}
+		} catch (SQLException e) {
+			// Handle any SQL errors
+			e.printStackTrace();
+		}
+		return res;
+	}
+
+	private LrsCredentials getLrsCredentialsByCourse(int courseId){
+		LrsCredentials res = null;
+		try (Connection conn = getConnection();
+			PreparedStatement pstmt = conn.prepareStatement("SELECT clientkey,clientsecret FROM lrsstoreforcourse WHERE courseid = ?")) {
+
+			// Set the email parameter in the prepared statement
+			pstmt.setInt(1, courseId);
+
+			// Execute the query and retrieve the result set
+			try (ResultSet rs = pstmt.executeQuery()) {
+
+				// If the email exists in the table, the result set will contain one row with the UUID
+				if (rs.next()) {
+					String key = rs.getString("clientkey");
+					String secret = rs.getString("clientsecret");
+					res = new LrsCredentials(key, secret);
+				} else {
+					System.out.println("No lrs information found for course " + courseId);
+				}
+			}
+		} catch (SQLException e) {
+			// Handle any SQL errors
+			e.printStackTrace();
+		}
+		return res;
+	}
+
+	private JSONObject prepareXapiStatement(String user, String topic, int course, String fileId) throws ParseException{
+		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+		JSONObject actor = new JSONObject();
+		actor.put("objectType", "Agent");
+		JSONObject account = new JSONObject();
+
+		account.put("name", user);
+		account.put("homePage", "https://chat.tech4comp.dbis.rwth-aachen.de");
+		actor.put("account", account);
+		
+		JSONObject verb = (JSONObject) p
+				.parse(new String("{'display':{'en-US':'sent_file'},'id':'https://tech4comp.de/xapi/verb/sent_file'}"));
+		JSONObject object = (JSONObject) p
+				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + topic
+						+ "'}, 'description':{'en-US':'" + topic
+						+ "'}, 'type':'https://tech4comp.de/xapi/activitytype/file'},'id':'https://tech4comp.de/tmitocar/file/"
+						+ fileId + "', 'objectType':'Activity'}"));
+		JSONObject context = (JSONObject) p.parse(new String(
+				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/file':{'id':'"
+						+ fileId + "','topic':'"
+						+ topic
+						+ "','course':'" + course + "'}}}"));
+		JSONObject xAPI = new JSONObject();
+
+		xAPI.put("authority", p.parse(
+				new String("{'objectType': 'Agent','name': 'New Client', 'mbox': 'mailto:hello@learninglocker.net'}")));
+		xAPI.put("context", context); //
+		// xAPI.put("timestamp", java.time.LocalDateTime.now());
+		xAPI.put("actor", actor);
+		xAPI.put("object", object);
+		xAPI.put("verb", verb);
+		return xAPI;
 	}
 
 }
