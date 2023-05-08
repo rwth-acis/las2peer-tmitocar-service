@@ -566,6 +566,13 @@ public class TmitocarService extends RESTService {
 			if (isActive.getOrDefault(label1, false)) {
 				return Response.status(Status.BAD_REQUEST).entity("User: " + label1 + " currently busy.").build();
 			}
+			File templatePath = new File("tmitocar/templates/" + template);
+			if (!templatePath.exists()){
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "Template: " + template + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
 			isActive.put(label1, true);
 			String encodedByteString = convertInputStreamToBase64(textInputStream);
 			TmitocarText tmitoBody = new TmitocarText();
@@ -627,6 +634,15 @@ public class TmitocarService extends RESTService {
 			if (isActive.getOrDefault(label1, false)) {
 				JSONObject err = new JSONObject();
 				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+
+			
+			File templatePath = new File("tmitocar/templates/" + template);
+			if (!templatePath.exists()){
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "Template: " + template + " not found.");
 				err.put("error", true);
 				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
 			}
@@ -747,6 +763,15 @@ public class TmitocarService extends RESTService {
 				err.put("error", true);
 				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
 			}
+			
+			File templatePath = new File("tmitocar/templates/" + template);
+			if (!templatePath.exists()){
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "Template: " + template + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			
 			isActive.put(label1, true);
 			String encodedByteString = convertInputStreamToBase64(textInputStream);
 			TmitocarText tmitoBody = new TmitocarText();
