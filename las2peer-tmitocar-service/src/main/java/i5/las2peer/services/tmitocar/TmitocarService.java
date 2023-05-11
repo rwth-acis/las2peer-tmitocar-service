@@ -402,73 +402,24 @@ public class TmitocarService extends RESTService {
 		}
 	}
 
+	@GET
+    @Path("/")
+    public Response getDefault() {
+        try {
+            // Perform any necessary operations or calculations here
+            String result = "Welcome to the tmitocar service!";
+            return Response.ok(result).build();
+        } catch (Exception e) {
+            // Handle any exceptions that occur
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
 	@Api(value = "Writing Task Resource")
 	@SwaggerDefinition(info = @Info(title = "Writing Task Resource", version = "1.0.0", description = "Todo.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
 	@Path("/task")
 	public static class WritingTask {
 		TmitocarService service = (TmitocarService) Context.get().getService();
-
-		@GET
-		@Path("/")
-		@Produces(MediaType.APPLICATION_JSON)
-		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
-		@ApiOperation(value = "getAllTasks", notes = "Returns all writing tasks")
-		public Response getWritingTasks(@QueryParam("courseId") int courseId) {
-			
-			Connection conn = null;
-			PreparedStatement stmt = null;
-			ResultSet rs = null;
-			JSONArray jsonArray = new JSONArray();
-			String chatMessage = "";
-			try {
-				conn = service.getConnection();
-				if (courseId == 0) {
-					stmt = conn.prepareStatement("SELECT * FROM writingtask");
-				} else {
-					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE courseid = ?");
-					stmt.setInt(1, courseId);
-				}
-				rs = stmt.executeQuery();
-
-				while (rs.next()) {
-					courseId = rs.getInt("courseid");
-					int nr = rs.getInt("nr");
-					String text = rs.getString("text");
-					String title = rs.getString("title");
-
-					JSONObject jsonObject = new JSONObject();
-					jsonObject.put("courseId", courseId);
-					jsonObject.put("nr", nr);
-					jsonObject.put("text", text);
-					jsonObject.put("title", title);
-
-					jsonArray.add(jsonObject);
-					chatMessage += nr+": "+title+"\n<br>\n";
-				}
-			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} finally {
-				try {
-					if (rs != null) {
-						rs.close();
-					}
-					if (stmt != null) {
-						stmt.close();
-					}
-					if (conn != null) {
-						conn.close();
-					}
-				} catch (SQLException ex) {
-					System.out.println(ex.getMessage());
-				}
-			}
-			JSONObject response = new JSONObject();
-			response.put("data", jsonArray);
-			response.put("chatMessage", chatMessage);
-			return Response.ok().entity(response.toString()).build();
-		}
-
 
 		@GET
 		@Path("/{tasknr}")
@@ -484,9 +435,14 @@ public class TmitocarService extends RESTService {
 			String chatMessage = "";
 			try {
 				conn = service.getConnection();
-				if (courseId == 0) {
+				if (tasknr == 0 && courseId == 0) {
+					stmt = conn.prepareStatement("SELECT * FROM writingtask");
+				} else if (tasknr !=0 && courseId == 0) {
 					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE nr = ?");
 					stmt.setInt(1, tasknr);
+				} else if (tasknr ==0 && courseId != 0) {
+					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE courseid = ?");
+					stmt.setInt(1, courseId);
 				} else {
 					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE nr = ? AND courseid = ?");
 					stmt.setInt(1, tasknr);
