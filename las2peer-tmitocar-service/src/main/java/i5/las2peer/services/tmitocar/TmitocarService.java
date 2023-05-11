@@ -410,11 +410,10 @@ public class TmitocarService extends RESTService {
 		
 		@GET
 		@Path("/")
-		@Consumes(MediaType.MULTIPART_FORM_DATA)
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "getAllTasks", notes = "Returns all writing tasks")
-		public Response getWritingTasks(@FormDataParam("courseId") int courseId) {
+		public Response getWritingTasks(@QueryParam("courseId") int courseId) {
 			
 			Connection conn = null;
 			PreparedStatement stmt = null;
