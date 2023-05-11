@@ -407,13 +407,13 @@ public class TmitocarService extends RESTService {
 	@Path("/task")
 	public static class WritingTask {
 		TmitocarService service = (TmitocarService) Context.get().getService();
-
+		
 		@GET
-		@Path("/")
+		@Path("/{courseId}")
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "getAllTasks", notes = "Returns all writing tasks")
-		public Response getWritingTasks(@QueryParam("courseId") int courseId) {
+		public Response getWritingTasks(@PathParam("courseId") int courseId) {
 			
 			Connection conn = null;
 			PreparedStatement stmt = null;
