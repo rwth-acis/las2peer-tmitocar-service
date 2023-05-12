@@ -446,7 +446,7 @@ public class TmitocarService extends RESTService {
 					jsonArray.add(jsonObject);
 					jsonObject = new JSONObject();
 					jsonObject.put("intent", nr);
-					jsonObject.put("label", "Schreibaugabe "+ nr);
+					jsonObject.put("label", "Schreibaufgabe "+ nr);
 					jsonObject.put("isFile", false);
 
 					interactiveElements.add(jsonObject);
