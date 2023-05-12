@@ -419,6 +419,7 @@ public class TmitocarService extends RESTService {
 			PreparedStatement stmt = null;
 			ResultSet rs = null;
 			JSONArray jsonArray = new JSONArray();
+			JSONArray interactiveElements = new JSONArray();
 			String chatMessage = "";
 			try {
 				conn = service.getConnection();
@@ -443,6 +444,12 @@ public class TmitocarService extends RESTService {
 					jsonObject.put("title", title);
 
 					jsonArray.add(jsonObject);
+					jsonObject = new JSONObject();
+					jsonObject.put("intent", nr);
+					jsonObject.put("label", "Schreibaugabe "+ nr);
+					jsonObject.put("isFile", false);
+
+					interactiveElements.add(jsonObject);
 					chatMessage += nr+": "+title+"\n<br>\n";
 				}
 			} catch (SQLException e) {
@@ -465,6 +472,7 @@ public class TmitocarService extends RESTService {
 			}
 			JSONObject response = new JSONObject();
 			response.put("data", jsonArray);
+			response.put("interactiveElements", interactiveElements);
 			response.put("chatMessage", chatMessage);
 			return Response.ok().entity(response.toString()).build();
 		}
