@@ -682,7 +682,7 @@ public class TmitocarService extends RESTService {
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
 					JSONObject xapi = service.prepareXapiStatement(uuid, topic, courseId, uploaded.toString());
-					String toEncode = lrsCredentials.getClientKey()+"."+lrsCredentials.getClientSecret();
+					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 
 					service.sendXAPIStatement(xapi, encodedString);
@@ -813,7 +813,7 @@ public class TmitocarService extends RESTService {
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
 					JSONObject xapi = service.prepareXapiStatement(uuid, topic, courseId, uploaded.toString());
-					String toEncode = lrsCredentials.getClientKey()+"."+lrsCredentials.getClientSecret();
+					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 					service.sendXAPIStatement(xapi, encodedString);
 				}
