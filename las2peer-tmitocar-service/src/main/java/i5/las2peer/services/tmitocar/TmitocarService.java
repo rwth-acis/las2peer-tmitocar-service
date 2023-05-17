@@ -872,7 +872,7 @@ public class TmitocarService extends RESTService {
 			}
 			TmitocarResponse response = new TmitocarResponse(uploaded.toString());
 			response.setLabel1(label1);
-			response.setLabel2(label2);
+			response.setLabel2(courseId + "-"+ label2);
 			String uuid = service.getUuidByEmail(email);
 			if (uuid!=null){
 				// user has accepted
