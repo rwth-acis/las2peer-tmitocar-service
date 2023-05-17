@@ -346,12 +346,16 @@ public class TmitocarService extends RESTService {
 						// LRS Store feedback
 						String[] courseAndTask = label2.split("-");
 
-						LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
-						if(lrsCredentials!=null){
-							JSONObject xapi = prepareXapiStatement(body.getUuid(), "received_file", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString());
-							String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
-							String encodedString = Base64.encodeBytes(toEncode.getBytes());
-							sendXAPIStatement(xapi, encodedString);
+						String uuid = getUuidByEmail(body.getUuid());
+							if (uuid!=null){
+								// user has accepted
+							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
+							if(lrsCredentials!=null){
+								JSONObject xapi = prepareXapiStatement(uuid, "received_file", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString());
+								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
+								String encodedString = Base64.encodeBytes(toEncode.getBytes());
+								sendXAPIStatement(xapi, encodedString);
+							}
 						}
 
 
