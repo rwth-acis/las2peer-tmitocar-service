@@ -9,6 +9,8 @@ public class TmitocarResponse {
     private String uploadFileId;
     private String feedbackFileId;
     private String graphFileId;
+    private String label1;
+    private String label2;
 
     /**
      * Constructs a TmitocarResponse object with the specified upload file ID.
@@ -95,4 +97,20 @@ public class TmitocarResponse {
     public void setGraphFileId(String graphFileId) {
         this.graphFileId = graphFileId;
     } 
+
+    public String getLabel1() {
+        return label1;
+    }
+
+    public void setLabel1(String label1) {
+        this.label1 = label1;
+    }
+
+    public String getLabel2() {
+        return label2;
+    }
+
+    public void setLabel2(String label2) {
+        this.label2 = label2;
+    }
 }

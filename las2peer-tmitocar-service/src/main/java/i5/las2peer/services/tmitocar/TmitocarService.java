@@ -125,7 +125,6 @@ public class TmitocarService extends RESTService {
 
 	private final static String AUTH_FILE = "tmitocar/auth.json";
 
-	private String sbfmURL;
 
 	// This is the constructor of the TmitocarService class.
 	public TmitocarService() {
@@ -292,7 +291,7 @@ public class TmitocarService extends RESTService {
 	 *         tmitocar service.
 	 */
 	public boolean compareText(@PathParam("label1") String label1, @PathParam("label2") String label2,
-			@PathParam("template") String template, TmitocarText body, String email, String sbfmURL) {
+			@PathParam("template") String template, TmitocarText body, String callbackUrl) {
 		isActive.put(label1, true);
 		JSONObject j = new JSONObject();
 		j.put("user", label1);
@@ -320,27 +319,67 @@ public class TmitocarService extends RESTService {
 						System.out.println("Generate feedback.");
 						// generate feedback
 						generateFeedback(label1, label2, template, body.getTopic());
+
+						ObjectId feedbackFileId = null;
+						ObjectId graphFileId = null;
+						
+						System.out.println("Storing PDF to mongodb...");
+						feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf");
+						graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json");
+
+						if (feedbackFileId == null) {
+							System.out.println("Something went wrong storing the feedback for " + label1);
+							// err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+							// err.put("error", true);
+							// TODO
+						}else{
+							System.out.println("Feedback: "+ feedbackFileId.toString());
+						}
+						if (graphFileId == null) {
+							System.out.println("Something went wrong storing the feedback for " + label1);
+							// err.put("errorMessage", "Something went wrong storing the graph for " + label1);
+							// err.put("error", true);
+							// TODO
+						}else{
+							System.out.println("Graph: "+ graphFileId.toString());
+						}
+						// LRS Store feedback
+						String[] courseAndTask = label2.split("-");
+
+						LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
+						if(lrsCredentials!=null){
+							JSONObject xapi = prepareXapiStatement(body.getUuid(), "received_file", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString());
+							String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
+							String encodedString = Base64.encodeBytes(toEncode.getBytes());
+							sendXAPIStatement(xapi, encodedString);
+						}
+
+
 						try {    
 							Client textClient = ClientBuilder.newBuilder().register(MultiPartFeature.class).build();
 							FormDataMultiPart mp = new FormDataMultiPart();
 							JSONObject steve = new JSONObject();
 							// example, should be replaced with actual stuff
-							steve.put("graphFileId", "6462345616d0e67f65852ca5");
-							steve.put("feedbackFileId", "6462345616d0e67f65852ca2");
+							steve.put("graphFileId", graphFileId);
+							steve.put("feedbackFileId", feedbackFileId);
 							mp = mp.field("files", steve.toJSONString());
 							WebTarget target = textClient
-									.target(sbfmURL + "/" + email + "/" + label1 + "/" + label2 + "files");
+									.target(callbackUrl + "/" + body.getUuid() + "/" + label1 + "/" + label2 + "files");
 							Response response = target.request()
 									.post(javax.ws.rs.client.Entity.entity(mp, mp.getMediaType()));
 									String test = response.readEntity(String.class);
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
+
 						isActive.put(label1, false);
 					} catch (IOException e) {
 						e.printStackTrace();
 						isActive.put(label1, false);
 					} catch (InterruptedException e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+					} catch (ParseException e) {
 						e.printStackTrace();
 						isActive.put(label1, false);
 					}
@@ -661,7 +700,7 @@ public class TmitocarService extends RESTService {
 				@FormDataParam("file") InputStream textInputStream,
 				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
 				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
-				@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId) throws ParseException, IOException {
+				@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId,@FormDataParam("task") int task, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
 			if (isActive.getOrDefault(label1, false)) {
 				JSONObject err = new JSONObject();
 				err.put("errorMessage", "User: " + label1 + " currently busy.");
@@ -704,7 +743,7 @@ public class TmitocarService extends RESTService {
 				// user has accepted
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
-					JSONObject xapi = service.prepareXapiStatement(uuid, topic, courseId, uploaded.toString());
+					JSONObject xapi = service.prepareXapiStatement(uuid, "sent_file", topic, courseId, task, uploaded.toString());
 					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 
@@ -811,7 +850,10 @@ public class TmitocarService extends RESTService {
 			tmitoBody.setWordSpec(wordSpec);
 			tmitoBody.setTemplate(template);
 			tmitoBody.setText(encodedByteString);
-			boolean comparing = service.compareText(label1, label2, template, tmitoBody, email, sbfmURL);
+			tmitoBody.setUuid(email);
+
+			boolean comparing = service.compareText(label1, courseId + "-"+ label2, template, tmitoBody, sbfmURL);
+
 			if (!comparing) {
 				isActive.put(label1, false);
 				return Response.status(Status.BAD_REQUEST).entity("Something went wrong: " + label1 + ".").build();
@@ -829,13 +871,14 @@ public class TmitocarService extends RESTService {
 				e.printStackTrace();
 			}
 			TmitocarResponse response = new TmitocarResponse(uploaded.toString());
-
+			response.setLabel1(label1);
+			response.setLabel2(label2);
 			String uuid = service.getUuidByEmail(email);
 			if (uuid!=null){
 				// user has accepted
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
-					JSONObject xapi = service.prepareXapiStatement(uuid, topic, courseId, uploaded.toString());
+					JSONObject xapi = service.prepareXapiStatement(uuid, "sent_file", topic, courseId, Integer.parseInt(label2), uploaded.toString());
 					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 					service.sendXAPIStatement(xapi, encodedString);
@@ -1145,7 +1188,7 @@ public class TmitocarService extends RESTService {
 		return res;
 	}
 
-	private JSONObject prepareXapiStatement(String user, String topic, int course, String fileId) throws ParseException{
+	private JSONObject prepareXapiStatement(String user, String verbId, String topic, int course, int taskNr, String fileId) throws ParseException{
 		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 		JSONObject actor = new JSONObject();
 		actor.put("objectType", "Agent");
@@ -1156,7 +1199,7 @@ public class TmitocarService extends RESTService {
 		actor.put("account", account);
 		
 		JSONObject verb = (JSONObject) p
-				.parse(new String("{'display':{'en-US':'sent_file'},'id':'https://tech4comp.de/xapi/verb/sent_file'}"));
+				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'https://tech4comp.de/xapi/verb/"+verbId+"'}"));
 		JSONObject object = (JSONObject) p
 				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + topic
 						+ "'}, 'description':{'en-US':'" + topic
@@ -1166,7 +1209,7 @@ public class TmitocarService extends RESTService {
 				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/file':{'id':'"
 						+ fileId + "','topic':'"
 						+ topic
-						+ "','course':'" + course + "'}}}"));
+						+ "','course':'" + course + "','taskNr':'" + taskNr + "'}}}"));
 		JSONObject xAPI = new JSONObject();
 
 		xAPI.put("authority", p.parse(

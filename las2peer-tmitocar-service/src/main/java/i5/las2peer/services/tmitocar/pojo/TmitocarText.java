@@ -11,6 +11,7 @@ public class TmitocarText {
 	private String topic;
 	private String template;
 	private String wordSpec;
+	private String uuid;
 
 	/**
 	 * Returns the text represented by this object.
@@ -100,5 +101,13 @@ public class TmitocarText {
 	 */
 	public void setWordSpec(String wordSpec) {
 		this.wordSpec = wordSpec;
+	}
+
+	public String getUuid() {
+		return uuid;
+	}
+
+	public void setUuid(String uuid) {
+		this.uuid = uuid;
 	}
 }
