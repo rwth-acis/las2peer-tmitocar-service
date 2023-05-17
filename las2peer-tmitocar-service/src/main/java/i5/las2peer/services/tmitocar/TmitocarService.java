@@ -28,6 +28,9 @@ import java.sql.SQLException;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -49,6 +52,7 @@ import com.mongodb.client.gridfs.GridFSBuckets;
 import i5.las2peer.api.Context;
 import i5.las2peer.api.ManualDeployment;
 import i5.las2peer.api.logging.MonitoringEvent;
+import i5.las2peer.connectors.webConnector.client.MiniClient;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.restMapper.RESTService;
 import i5.las2peer.restMapper.annotations.ServicePath;
@@ -77,7 +81,9 @@ import org.bson.codecs.pojo.PojoCodecProvider;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.FormDataParam;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
@@ -118,6 +124,8 @@ public class TmitocarService extends RESTService {
 	private static BasicDataSource dataSource;
 
 	private final static String AUTH_FILE = "tmitocar/auth.json";
+
+	private String sbfmURL;
 
 	// This is the constructor of the TmitocarService class.
 	public TmitocarService() {
@@ -284,7 +292,7 @@ public class TmitocarService extends RESTService {
 	 *         tmitocar service.
 	 */
 	public boolean compareText(@PathParam("label1") String label1, @PathParam("label2") String label2,
-			@PathParam("template") String template, TmitocarText body) {
+			@PathParam("template") String template, TmitocarText body, String email, String sbfmURL) {
 		isActive.put(label1, true);
 		JSONObject j = new JSONObject();
 		j.put("user", label1);
@@ -312,7 +320,22 @@ public class TmitocarService extends RESTService {
 						System.out.println("Generate feedback.");
 						// generate feedback
 						generateFeedback(label1, label2, template, body.getTopic());
-
+						try {    
+							Client textClient = ClientBuilder.newBuilder().register(MultiPartFeature.class).build();
+							FormDataMultiPart mp = new FormDataMultiPart();
+							JSONObject steve = new JSONObject();
+							// example, should be replaced with actual stuff
+							steve.put("graphFileId", "6462345616d0e67f65852ca5");
+							steve.put("feedbackFileId", "6462345616d0e67f65852ca2");
+							mp = mp.field("files", steve.toJSONString());
+							WebTarget target = textClient
+									.target(sbfmURL + "/" + email + "/" + label1 + "/" + label2 + "files");
+							Response response = target.request()
+									.post(javax.ws.rs.client.Entity.entity(mp, mp.getMediaType()));
+									String test = response.readEntity(String.class);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
 						isActive.put(label1, false);
 					} catch (IOException e) {
 						e.printStackTrace();
@@ -764,7 +787,7 @@ public class TmitocarService extends RESTService {
 				@FormDataParam("file") InputStream textInputStream,
 				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
 				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
-				@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId) throws ParseException, IOException {
+				@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
 			if (isActive.getOrDefault(label1, false)) {
 				JSONObject err = new JSONObject();
 				err.put("errorMessage", "User: " + label1 + " currently busy.");
@@ -788,7 +811,7 @@ public class TmitocarService extends RESTService {
 			tmitoBody.setWordSpec(wordSpec);
 			tmitoBody.setTemplate(template);
 			tmitoBody.setText(encodedByteString);
-			boolean comparing = service.compareText(label1, label2, template, tmitoBody);
+			boolean comparing = service.compareText(label1, label2, template, tmitoBody, email, sbfmURL);
 			if (!comparing) {
 				isActive.put(label1, false);
 				return Response.status(Status.BAD_REQUEST).entity("Something went wrong: " + label1 + ".").build();
