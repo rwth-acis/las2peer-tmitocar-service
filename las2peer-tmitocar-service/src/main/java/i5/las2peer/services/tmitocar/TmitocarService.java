@@ -2,6 +2,7 @@ package i5.las2peer.services.tmitocar;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.FileInputStream;
@@ -48,6 +49,8 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.GridFSBuckets;
+import com.mongodb.client.gridfs.model.GridFSFile;
+import com.mongodb.client.model.Filters;
 
 import i5.las2peer.api.Context;
 import i5.las2peer.api.ManualDeployment;
@@ -74,6 +77,7 @@ import net.minidev.json.parser.ParseException;
 import org.apache.pdfbox.pdfparser.PDFParser;
 import org.bson.BsonDocument;
 import org.bson.BsonInt64;
+import org.bson.BsonObjectId;
 import org.bson.Document;
 import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistry;
@@ -673,6 +677,85 @@ public class TmitocarService extends RESTService {
 			return Response.ok().entity(g.toJson(response)).build();
 		}
 	}
+
+
+	@Api(value = "Analysis Resource")
+	@SwaggerDefinition(info = @Info(title = "Analysis Resource", version = "1.0.0", description = "Todo", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@Path("/analysis")
+	public static class Analysis {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+
+		/**
+		 * Anaylze text
+		 */
+		@GET
+		@Path("/{fileId}")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "get", notes = "Analyzes a text and generates a PDF report")
+		public Response getCommonWords(@PathParam("fileId") String fileId) throws ParseException, IOException {
+
+			CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
+				CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
+				MongoClientSettings settings = MongoClientSettings.builder()
+						.uuidRepresentation(UuidRepresentation.STANDARD)
+						.applyConnectionString(new ConnectionString(service.mongoUri))
+						.codecRegistry(codecRegistry)
+						.build();
+				
+				// Create a new client and connect to the server
+				MongoClient mongoClient = MongoClients.create(settings);
+				
+				try {
+					MongoDatabase database = mongoClient.getDatabase(service.mongoDB);
+					GridFSBucket gridFSBucket = GridFSBuckets.create(database, "files");
+					gridFSBucket.find(Filters.empty());
+					ObjectId oId = new ObjectId(fileId);
+					BsonObjectId bId = new BsonObjectId(oId);
+					GridFSFile file = gridFSBucket.find(Filters.eq(bId)).first();
+					if (file == null) {
+						return Response.status(Response.Status.NOT_FOUND).entity("File with ID "+fileId+" not found").build();
+					}
+					Response.ResponseBuilder response = Response.ok(file.getObjectId().toHexString());
+					response.header("Content-Disposition", "attachment; filename=\"" + file.getFilename() + "\"");
+					
+					// Download the file to a ByteArrayOutputStream
+					ByteArrayOutputStream baos = new ByteArrayOutputStream();
+					gridFSBucket.downloadToStream(file.getObjectId(), baos);
+					String jsonStr = baos.toString();
+					JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
+
+					// Parse the JSON string into a JSONObject
+					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
+
+					String formattedMessage = "BegriffeSchnittmenge:\n";
+					formattedMessage += "-------------------------\n";
+					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeSchnittmenge");
+					formattedMessage += formatJSONArray(bSchnittmengeArray);
+					
+					
+					return Response.ok(formattedMessage, MediaType.TEXT_HTML).build();
+				} catch (MongoException me) {
+					System.err.println(me);
+				} finally {
+					// Close the MongoDB client
+					mongoClient.close();
+				}
+				return Response.status(Response.Status.BAD_REQUEST).entity("Something went wrong getting common words for analysis: "+fileId).build();
+			}
+		}
+
+		// Helper method to format a JSONArray as a string
+		private static String formatJSONArray(JSONArray jsonArray) {
+			StringBuilder builder = new StringBuilder();
+			
+			for (Object value : jsonArray) {
+				String strValue = (String) value;
+				builder.append("- ").append(strValue).append("\n");
+			}
+			return builder.toString();
+		}
+
 
 	@Api(value = "Feedback Resource")
 	@SwaggerDefinition(info = @Info(title = "Feedback Resource", version = "1.0.0", description = "This API is responsible for handling text documents in txt or pdf format and sending them to T-MITOCAR for processing. The feedback is then saved in a MongoDB and the document IDs are returned.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
