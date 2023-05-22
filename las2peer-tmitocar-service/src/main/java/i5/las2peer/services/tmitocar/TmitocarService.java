@@ -154,6 +154,7 @@ public class TmitocarService extends RESTService {
 		getResourceConfig().register(Feedback.class);
 		getResourceConfig().register(TMitocarText.class);
 		getResourceConfig().register(WritingTask.class);
+		getResourceConfig().register(Analysis.class);
 	}
 
 	private void initVariables() {
@@ -689,7 +690,7 @@ public class TmitocarService extends RESTService {
 		 * Anaylze text
 		 */
 		@GET
-		@Path("/{fileId}")
+		@Path("/{fileId}/commonWords")
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "get", notes = "Analyzes a text and generates a PDF report")
