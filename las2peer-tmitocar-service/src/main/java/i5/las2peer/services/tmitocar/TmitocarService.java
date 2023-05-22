@@ -747,7 +747,7 @@ public class TmitocarService extends RESTService {
 				// user has accepted
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
-					JSONObject xapi = service.prepareXapiStatement(uuid, "sent_file", topic, courseId, task, uploaded.toString());
+					JSONObject xapi = service.prepareXapiStatement(uuid, "sent_file", topic, courseId, task, uploaded.toString(),null,null);
 					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 
