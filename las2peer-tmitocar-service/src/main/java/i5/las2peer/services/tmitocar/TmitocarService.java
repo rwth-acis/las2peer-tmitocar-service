@@ -729,10 +729,10 @@ public class TmitocarService extends RESTService {
 					// Parse the JSON string into a JSONObject
 					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
 
-					String formattedMessage = "BegriffeSchnittmenge:\n";
-					formattedMessage += "-------------------------\n";
+					String formattedMessage = "Danke, besprich das gern auch mit Kommiliton:innen und deinem/r Dozent:in. Wenn ich jetzt deinen Text und den Expertentext vergleiche, dann tauchen in beiden Texten folgende Begriffe als wesentlich auf:\n";
 					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeSchnittmenge");
 					formattedMessage += formatJSONArray(bSchnittmengeArray);
+					formattedMessage += "Wenn du nochmal an die Aufgabenstellung denkst, fehlen Schlüsselbegriffe, die du noch ergänzen würdest? Wenn ja, welche?";
 					
 					
 					return Response.ok(formattedMessage, MediaType.TEXT_HTML).build();
@@ -744,7 +744,69 @@ public class TmitocarService extends RESTService {
 				}
 				return Response.status(Response.Status.BAD_REQUEST).entity("Something went wrong getting common words for analysis: "+fileId).build();
 			}
+
+		/**
+		 * Anaylze text
+		 */
+		@GET
+		@Path("/{fileId}/label2Words")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "get", notes = "Analyzes a text and generates a PDF report")
+		public Response getLabel2Words(@PathParam("fileId") String fileId) throws ParseException, IOException {
+
+			CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
+				CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
+				MongoClientSettings settings = MongoClientSettings.builder()
+						.uuidRepresentation(UuidRepresentation.STANDARD)
+						.applyConnectionString(new ConnectionString(service.mongoUri))
+						.codecRegistry(codecRegistry)
+						.build();
+				
+				// Create a new client and connect to the server
+				MongoClient mongoClient = MongoClients.create(settings);
+				
+				try {
+					MongoDatabase database = mongoClient.getDatabase(service.mongoDB);
+					GridFSBucket gridFSBucket = GridFSBuckets.create(database, "files");
+					gridFSBucket.find(Filters.empty());
+					ObjectId oId = new ObjectId(fileId);
+					BsonObjectId bId = new BsonObjectId(oId);
+					GridFSFile file = gridFSBucket.find(Filters.eq(bId)).first();
+					if (file == null) {
+						return Response.status(Response.Status.NOT_FOUND).entity("File with ID "+fileId+" not found").build();
+					}
+					Response.ResponseBuilder response = Response.ok(file.getObjectId().toHexString());
+					response.header("Content-Disposition", "attachment; filename=\"" + file.getFilename() + "\"");
+					
+					// Download the file to a ByteArrayOutputStream
+					ByteArrayOutputStream baos = new ByteArrayOutputStream();
+					gridFSBucket.downloadToStream(file.getObjectId(), baos);
+					String jsonStr = baos.toString();
+					JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
+
+					// Parse the JSON string into a JSONObject
+					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
+
+					String formattedMessage = "Übrigens gibt es noch folgende Begriffe, die im Expertentext genannt wurden, aber noch nicht in deinem Text auftauchen::\n";
+					formattedMessage += "-------------------------\n";
+					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeDiffB");
+					formattedMessage += formatJSONArray(bSchnittmengeArray);
+					formattedMessage += "Überleg nochmal, welche davon du sinnvoll in deinen Text einbauen kannst und möchtest.";
+					
+					
+					return Response.ok(formattedMessage, MediaType.TEXT_HTML).build();
+				} catch (MongoException me) {
+					System.err.println(me);
+				} finally {
+					// Close the MongoDB client
+					mongoClient.close();
+				}
+				return Response.status(Response.Status.BAD_REQUEST).entity("Something went wrong getting label2 words for analysis: "+fileId).build();
+			}
+			
 		}
+
 
 		// Helper method to format a JSONArray as a string
 		private static String formatJSONArray(JSONArray jsonArray) {
