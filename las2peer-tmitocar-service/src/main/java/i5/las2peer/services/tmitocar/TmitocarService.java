@@ -372,6 +372,7 @@ public class TmitocarService extends RESTService {
 							// example, should be replaced with actual stuff
 							steve.put("graphFileId", graphFileId);
 							steve.put("feedbackFileId", feedbackFileId);
+							System.out.println(steve);
 							mp = mp.field("files", steve.toJSONString());
 							WebTarget target = textClient
 									.target(callbackUrl + "/" + body.getUuid() + "/" + label1 + "/" + label2 + "/files");
