@@ -374,7 +374,7 @@ public class TmitocarService extends RESTService {
 							steve.put("feedbackFileId", feedbackFileId);
 							mp = mp.field("files", steve.toJSONString());
 							WebTarget target = textClient
-									.target(callbackUrl + "/" + body.getUuid() + "/" + label1 + "/" + label2 + "files");
+									.target(callbackUrl + "/" + body.getUuid() + "/" + label1 + "/" + label2 + "/files");
 							Response response = target.request()
 									.post(javax.ws.rs.client.Entity.entity(mp, mp.getMediaType()));
 									String test = response.readEntity(String.class);
