@@ -370,8 +370,8 @@ public class TmitocarService extends RESTService {
 							FormDataMultiPart mp = new FormDataMultiPart();
 							JSONObject steve = new JSONObject();
 							// example, should be replaced with actual stuff
-							steve.put("graphFileId", graphFileId);
-							steve.put("feedbackFileId", feedbackFileId);
+							steve.put("graphFileId", graphFileId.toString());
+							steve.put("feedbackFileId", feedbackFileId.toString());
 							System.out.println(steve);
 							mp = mp.field("files", steve.toJSONString());
 							WebTarget target = textClient
