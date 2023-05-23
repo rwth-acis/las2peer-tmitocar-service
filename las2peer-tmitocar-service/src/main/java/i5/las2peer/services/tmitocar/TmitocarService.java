@@ -365,6 +365,7 @@ public class TmitocarService extends RESTService {
 
 
 						try {    
+							System.out.println("Starting callback to botmanager with url: " + callbackUrl+ "/" + body.getUuid() + "/" + label1 + "/" + label2 + "files");
 							Client textClient = ClientBuilder.newBuilder().register(MultiPartFeature.class).build();
 							FormDataMultiPart mp = new FormDataMultiPart();
 							JSONObject steve = new JSONObject();
@@ -377,6 +378,7 @@ public class TmitocarService extends RESTService {
 							Response response = target.request()
 									.post(javax.ws.rs.client.Entity.entity(mp, mp.getMediaType()));
 									String test = response.readEntity(String.class);
+							System.out.println("Finished callback to botmanager with response: " + test);
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
