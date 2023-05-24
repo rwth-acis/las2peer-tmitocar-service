@@ -302,7 +302,7 @@ public class TmitocarService extends RESTService {
 		j.put("user", label1);
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
 		System.out.println("Block " + label1);
-
+		JSONObject error = new JSONObject();
 		try {
 			new Thread(new Runnable() {
 				@Override
@@ -363,44 +363,55 @@ public class TmitocarService extends RESTService {
 							}
 						}
 
-
-						try {    
-							System.out.println("Starting callback to botmanager with url: " + callbackUrl+ "/" + body.getUuid() + "/" + label1 + "/" + label2 + "files");
-							Client textClient = ClientBuilder.newBuilder().register(MultiPartFeature.class).build();
-							FormDataMultiPart mp = new FormDataMultiPart();
-							JSONObject steve = new JSONObject();
-							// example, should be replaced with actual stuff
-							steve.put("graphFileId", graphFileId.toString());
-							steve.put("feedbackFileId", feedbackFileId.toString());
-							System.out.println(steve);
-							mp = mp.field("files", steve.toJSONString());
-							WebTarget target = textClient
-									.target(callbackUrl + "/" + body.getUuid() + "/" + label1 + "/" + label2 + "/files");
-							Response response = target.request()
-									.post(javax.ws.rs.client.Entity.entity(mp, mp.getMediaType()));
-									String test = response.readEntity(String.class);
-							System.out.println("Finished callback to botmanager with response: " + test);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
+						JSONObject steve = new JSONObject();
+						// example, should be replaced with actual stuff
+						steve.put("graphFileId", graphFileId.toString());
+						steve.put("feedbackFileId", feedbackFileId.toString());
+						callBack(callbackUrl, label1, label1, label2, steve);
 
 						isActive.put(label1, false);
 					} catch (IOException e) {
 						e.printStackTrace();
 						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
 					} catch (ParseException e) {
 						e.printStackTrace();
 						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
 					}
 				}
 			}).start();
 			return true;
 		} catch (Exception e) {
 			e.printStackTrace();
+			error.put("error", e.toString());
+			callBack(callbackUrl, label1, label1, label2, error);
 			return false;
+		}
+	}
+
+	public void callBack(String callbackUrl, String uuid, String label1, String label2, JSONObject body){
+		try {    
+			System.out.println("Starting callback to botmanager with url: " + callbackUrl+ "/" + uuid + "/" + label1 + "/" + label2 + "files");
+			Client textClient = ClientBuilder.newBuilder().register(MultiPartFeature.class).build();
+			FormDataMultiPart mp = new FormDataMultiPart();
+			System.out.println(body);
+			mp = mp.field("files", body.toJSONString());
+			WebTarget target = textClient
+					.target(callbackUrl + "/" + uuid + "/" + label1 + "/" + label2 + "/files");
+			Response response = target.request()
+					.post(javax.ws.rs.client.Entity.entity(mp, mp.getMediaType()));
+					String test = response.readEntity(String.class);
+			System.out.println("Finished callback to botmanager with response: " + test);
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
