@@ -367,7 +367,7 @@ public class TmitocarService extends RESTService {
 						// example, should be replaced with actual stuff
 						steve.put("graphFileId", graphFileId.toString());
 						steve.put("feedbackFileId", feedbackFileId.toString());
-						callBack(callbackUrl, label1, label1, label2, steve);
+						callBack(callbackUrl, body.getUuid(), label1, label2, steve);
 
 						isActive.put(label1, false);
 					} catch (IOException e) {
