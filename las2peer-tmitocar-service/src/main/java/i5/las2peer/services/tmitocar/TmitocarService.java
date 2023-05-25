@@ -747,9 +747,10 @@ public class TmitocarService extends RESTService {
 					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeSchnittmenge");
 					formattedMessage += formatJSONArray(bSchnittmengeArray);
 					formattedMessage += "Wenn du nochmal an die Aufgabenstellung denkst, fehlen Schlüsselbegriffe, die du noch ergänzen würdest? Wenn ja, welche?";
+					JSONObject resBody = new JSONObject();
+					resBody.put("formattedMessage",formatJSONArray(bSchnittmengeArray));
 					
-					
-					return Response.ok(formattedMessage, MediaType.TEXT_HTML).build();
+					return Response.ok(resBody.toString()).build();
 				} catch (MongoException me) {
 					System.err.println(me);
 				} finally {
