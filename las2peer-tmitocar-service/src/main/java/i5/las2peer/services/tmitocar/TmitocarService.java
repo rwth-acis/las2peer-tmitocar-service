@@ -280,7 +280,7 @@ public class TmitocarService extends RESTService {
 		pb.directory(new File("tmitocar"));
 		Process p = pb.start();
 		p.waitFor();
-		cleanJSONFile("comparison_" + label1 + "_vs_" + label2 + ".json");
+		cleanJSONFile("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".json");
 	}
 
 	private void generateFeedback(String label1, String label2, String template, String topic)
