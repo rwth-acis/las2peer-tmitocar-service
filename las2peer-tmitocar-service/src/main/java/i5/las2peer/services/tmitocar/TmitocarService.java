@@ -810,9 +810,10 @@ public class TmitocarService extends RESTService {
 					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeDiffB");
 					formattedMessage += formatJSONArray(bSchnittmengeArray);
 					formattedMessage += "Überleg nochmal, welche davon du sinnvoll in deinen Text einbauen kannst und möchtest.";
+					JSONObject resBody = new JSONObject();
+					resBody.put("formattedMessage",formatJSONArray(bSchnittmengeArray));
 					
-					
-					return Response.ok(formattedMessage, MediaType.TEXT_HTML).build();
+					return Response.ok(resBody.toString()).build();
 				} catch (MongoException me) {
 					System.err.println(me);
 				} finally {
