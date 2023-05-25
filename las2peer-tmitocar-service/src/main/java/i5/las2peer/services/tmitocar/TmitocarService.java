@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -279,6 +280,7 @@ public class TmitocarService extends RESTService {
 		pb.directory(new File("tmitocar"));
 		Process p = pb.start();
 		p.waitFor();
+		cleanJSONFile("comparison_" + label1 + "_vs_" + label2 + ".json");
 	}
 
 	private void generateFeedback(String label1, String label2, String template, String topic)
@@ -1262,6 +1264,44 @@ public class TmitocarService extends RESTService {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private void cleanJSONFile(String path){
+		String[] attributesToKeep = {"Graph1Liste", "BegriffeSchnittmenge", "BegriffeDiffB"};
+		try {
+            // Read the JSON file
+            BufferedReader reader = new BufferedReader(new FileReader(path));
+            StringBuilder jsonString = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                jsonString.append(line);
+            }
+            reader.close();
+
+            // Parse the JSON
+			JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
+            JSONObject json = (JSONObject) parser.parse(jsonString.toString());
+
+            // Create a new JSON object for cleaned version
+            JSONObject cleanedJson = new JSONObject();
+
+            // Extract specific attributes
+            for (String attribute : attributesToKeep) {
+                if (json.containsKey(attribute)) {
+                    cleanedJson.put(attribute, json.get(attribute));
+                }
+            }
+
+            // Write cleaned JSON to file
+            FileWriter writer = new FileWriter(path);
+            writer.write(cleanedJson.toString());
+            writer.close();
+
+            System.out.println("Cleaned JSON file created successfully.");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 	}
 
 	private void sendXAPIStatement(JSONObject xAPI, String lrsAuthToken) {
