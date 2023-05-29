@@ -832,7 +832,8 @@ public class TmitocarService extends RESTService {
 			
 			for (Object value : jsonArray) {
 				String strValue = (String) value;
-				builder.append("- ").append(strValue).append("\n");
+				// currently adjusted to fit the MWB frontend
+				builder.append("- ").append(strValue).append("<br>");
 			}
 			return builder.toString();
 		}
