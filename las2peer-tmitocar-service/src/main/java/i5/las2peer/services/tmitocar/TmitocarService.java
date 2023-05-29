@@ -511,9 +511,9 @@ public class TmitocarService extends RESTService {
 			try {
 				conn = service.getConnection();
 				if (courseId == 0) {
-					stmt = conn.prepareStatement("SELECT * FROM writingtask");
+					stmt = conn.prepareStatement("SELECT * FROM writingtask ORDER BY nr ASC;");
 				} else {
-					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE courseid = ?");
+					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE courseid = ? ORDER BY nr ASC;");
 					stmt.setInt(1, courseId);
 				}
 				rs = stmt.executeQuery();
