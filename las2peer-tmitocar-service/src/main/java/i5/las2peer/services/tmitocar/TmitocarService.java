@@ -156,6 +156,7 @@ public class TmitocarService extends RESTService {
 		getResourceConfig().register(TMitocarText.class);
 		getResourceConfig().register(WritingTask.class);
 		getResourceConfig().register(Analysis.class);
+		getResourceConfig().register(FAQ.class);
 	}
 
 	private void initVariables() {
@@ -1108,7 +1109,7 @@ public class TmitocarService extends RESTService {
 	}
 
 	@Api(value = "FAQ Resource")
-	@SwaggerDefinition(info = @Info(title = "Writing Task Resource", version = "1.0.0", description = "Todo.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@SwaggerDefinition(info = @Info(title = "FAQ Resource", version = "1.0.0", description = "Todo.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
 	@Path("/faq")
 	public static class FAQ {
 		TmitocarService service = (TmitocarService) Context.get().getService();
