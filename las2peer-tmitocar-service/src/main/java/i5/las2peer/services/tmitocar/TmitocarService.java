@@ -1187,7 +1187,7 @@ public class TmitocarService extends RESTService {
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "getAllTasks", notes = "Returns writing task by id")
-		public Response getFAQByIntent(@PathParam("intent") int intent, @QueryParam("courseId") int courseId) {
+		public Response getFAQByIntent(@PathParam("intent") String intent, @QueryParam("courseId") int courseId) {
 			
 			Connection conn = null;
 			PreparedStatement stmt = null;
