@@ -1198,10 +1198,10 @@ public class TmitocarService extends RESTService {
 				conn = service.getConnection();
 				if (courseId == 0) {
 					stmt = conn.prepareStatement("SELECT * FROM coursefaq WHERE intent = ?");
-					stmt.setInt(1, intent);
+					stmt.setString(1, intent);
 				} else {
 					stmt = conn.prepareStatement("SELECT * FROM coursefaq WHERE intent = ? AND courseid = ?");
-					stmt.setInt(1, intent);
+					stmt.setString(1, intent);
 					stmt.setInt(2, courseId);
 				}
 				rs = stmt.executeQuery();
