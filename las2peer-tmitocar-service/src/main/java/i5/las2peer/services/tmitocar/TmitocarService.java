@@ -1194,6 +1194,7 @@ public class TmitocarService extends RESTService {
 			ResultSet rs = null;
 			JSONArray jsonArray = new JSONArray();
 			String chatMessage = "";
+			
 			try {
 				conn = service.getConnection();
 				if (courseId == 0) {
@@ -1204,6 +1205,8 @@ public class TmitocarService extends RESTService {
 					stmt.setString(1, intent);
 					stmt.setInt(2, courseId);
 				}
+				System.out.println("parameters are: " + intent + courseId);
+				System.out.println(stmt.toString());
 				rs = stmt.executeQuery();
 
 				while (rs.next()) {
