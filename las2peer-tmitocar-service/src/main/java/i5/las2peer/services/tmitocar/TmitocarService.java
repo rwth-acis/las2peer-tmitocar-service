@@ -1107,6 +1107,175 @@ public class TmitocarService extends RESTService {
 		}
 	}
 
+	@Api(value = "FAQ Resource")
+	@SwaggerDefinition(info = @Info(title = "Writing Task Resource", version = "1.0.0", description = "Todo.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@Path("/faq")
+	public static class FAQ {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+		
+		@GET
+		@Path("/")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAllQuestions", notes = "Returns all questions")
+		public Response getFAQ(@QueryParam("courseId") int courseId) {
+			
+			Connection conn = null;
+			PreparedStatement stmt = null;
+			ResultSet rs = null;
+			JSONArray jsonArray = new JSONArray();
+			JSONArray interactiveElements = new JSONArray();
+			String chatMessage = "";
+			try {
+				conn = service.getConnection();
+				if (courseId == 0) {
+					stmt = conn.prepareStatement("SELECT * FROM coursefaq;");
+				} else {
+					stmt = conn.prepareStatement("SELECT * FROM coursefaq WHERE courseid = ?;");
+					stmt.setInt(1, courseId);
+				}
+				rs = stmt.executeQuery();
+
+				while (rs.next()) {
+					courseId = rs.getInt("courseid");
+					String text = rs.getString("answer");
+					String intent = rs.getString("intent");
+
+					JSONObject jsonObject = new JSONObject();
+					jsonObject.put("courseId", courseId);;
+					jsonObject.put("text", text);
+					jsonObject.put("intent", intent);
+
+					jsonArray.add(jsonObject);
+					jsonObject = new JSONObject();
+					jsonObject.put("intent", intent);
+					jsonObject.put("label", "Question "+ intent);
+					jsonObject.put("isFile", false);
+
+					interactiveElements.add(jsonObject);
+					chatMessage += intent+": "+text+"\n<br>\n";
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} finally {
+				try {
+					if (rs != null) {
+						rs.close();
+					}
+					if (stmt != null) {
+						stmt.close();
+					}
+					if (conn != null) {
+						conn.close();
+					}
+				} catch (SQLException ex) {
+					System.out.println(ex.getMessage());
+				}
+			}
+			JSONObject response = new JSONObject();
+			response.put("data", jsonArray);
+			response.put("interactiveElements", interactiveElements);
+			response.put("chatMessage", chatMessage);
+			return Response.ok().entity(response.toString()).build();
+		}
+
+
+		@GET
+		@Path("/{intent}")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAllTasks", notes = "Returns writing task by id")
+		public Response getFAQByIntent(@PathParam("intent") int intent, @QueryParam("courseId") int courseId) {
+			
+			Connection conn = null;
+			PreparedStatement stmt = null;
+			ResultSet rs = null;
+			JSONArray jsonArray = new JSONArray();
+			String chatMessage = "";
+			try {
+				conn = service.getConnection();
+				if (courseId == 0) {
+					stmt = conn.prepareStatement("SELECT * FROM coursefaq WHERE intent = ?");
+					stmt.setInt(1, intent);
+				} else {
+					stmt = conn.prepareStatement("SELECT * FROM coursefaq WHERE intent = ? AND courseid = ?");
+					stmt.setInt(1, intent);
+					stmt.setInt(2, courseId);
+				}
+				rs = stmt.executeQuery();
+
+				while (rs.next()) {
+					String text = rs.getString("answer");
+					//String title = rs.getString("title");
+
+					chatMessage += text + "\n<br>";
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} finally {
+				try {
+					if (rs != null) {
+						rs.close();
+					}
+					if (stmt != null) {
+						stmt.close();
+					}
+					if (conn != null) {
+						conn.close();
+					}
+				} catch (SQLException ex) {
+					System.out.println(ex.getMessage());
+				}
+			}
+			if (chatMessage == "") {
+				stmt = null;
+				conn = null;
+				rs = null;
+				try{
+					conn = service.getConnection();
+					if (courseId == 0) {
+						stmt = conn.prepareStatement("SELECT * FROM courseFAQ WHERE intent = 'default'");
+					} else {
+						stmt = conn.prepareStatement("SELECT * FROM courseFAQ WHERE intent = 'default' AND courseid = ?");
+						stmt.setInt(1, courseId);
+					}
+					rs = stmt.executeQuery();
+
+					while (rs.next()) {
+						String text = rs.getString("answer");
+						//String title = rs.getString("title");
+	
+						chatMessage += text + "\n<br>";
+					}
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} finally {
+					try {
+						if (rs != null) {
+							rs.close();
+						}
+						if (stmt != null) {
+							stmt.close();
+						}
+						if (conn != null) {
+							conn.close();
+						}
+					} catch (SQLException ex) {
+						System.out.println(ex.getMessage());
+					}
+				}
+
+			}
+			JSONObject response = new JSONObject();
+			response.put("chatMessage", chatMessage);
+			return Response.ok().entity(response.toString()).build();
+		}
+
+	}
+
 	private static String convertInputStreamToBase64(InputStream inputStream) throws IOException {
 		byte[] bytes = inputStream.readAllBytes();
 		return Base64.encodeBytes(bytes);
