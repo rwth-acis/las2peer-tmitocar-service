@@ -1313,6 +1313,11 @@ public class TmitocarService extends RESTService {
 			String user = service.getUuidByEmail(email);
 			JSONObject jsonBody = new JSONObject();
 			JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+			if(courseId != 6){
+				JSONObject error = new JSONObject();
+				error.put("chateMessage","Keine Credits für deinen Kurs :).");
+				return Response.ok().entity(error.toString()).build();
+			}
 			try{
 				JSONObject acc = (JSONObject) p.parse(new String("{'account': { 'name': '" + user
 					+ "', 'homePage': 'https://chat.tech4comp.dbis.rwth-aachen.de'}}"));
@@ -1351,18 +1356,17 @@ public class TmitocarService extends RESTService {
 					JSONObject account = (JSONObject) actor.get("account");
 					if (account.get("name").toString().equals(user)
 							|| account.get("name").toString().equals(user)) {
+							System.out.println("name check passed");
 						// JSONObject object = (JSONObject) jsonIndex.get("object");
 						JSONObject context = (JSONObject) jsonIndex.get("context");
 						// JSONObject definition = (JSONObject) object.get("definition");
 						JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
-						System.out.println("13");
-						System.out.println("14");
 						// check if its not a delete statement
-						if (extensions.get("https://tech4comp.de/xapi/context/extensions/filecontent") != null) {
+						if (extensions.get("https://tech4comp.de/xapi/context/extensions/file") != null) {
 							JSONObject fileDetails = (JSONObject) extensions
-									.get("https://tech4comp.de/xapi/context/extensions/filecontent");
-							if (fileDetails.get("assignmentNumber") != null) {
-								String assignmentName = fileDetails.get("assignmentNumber").toString();
+									.get("https://tech4comp.de/xapi/context/extensions/file");
+							if (fileDetails.get("taskNr") != null) {
+								String assignmentName = fileDetails.get("taskNr").toString();
 								// JSONObject name = (JSONObject) definition.get("name");
 								// String assignmentName = name.getAsString("en-US");
 								try {
