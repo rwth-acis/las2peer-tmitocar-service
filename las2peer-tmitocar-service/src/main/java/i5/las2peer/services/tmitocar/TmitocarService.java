@@ -1310,13 +1310,17 @@ public class TmitocarService extends RESTService {
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
 		@ApiOperation(value = "getAllTasks", notes = "Returns writing task by id")
 		public Response getCreditsByUser(@QueryParam("email") String email, @QueryParam("courseId") int courseId) {
+			System.out.println(email);
 			String user = service.getUuidByEmail(email);
+			System.out.println(user);
 			JSONObject jsonBody = new JSONObject();
 			JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 			try{
-				JSONObject acc = (JSONObject) p.parse(new String("{'account': { 'name': '" + user
-					+ "', 'homePage': 'https://chat.tech4comp.dbis.rwth-aachen.de'}}"));
-				
+				JSONObject acc = new JSONObject();
+				JSONObject account = new JSONObject();
+				account.put("name","user");
+				account.put("homePage","https://chat.tech4comp.dbis.rwth-aachen.de");
+				acc.put("account",account);
 				LrsCredentials res = service.getLrsCredentialsByCourse(courseId);
 				URL url = new URL(service.lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
 				if(res==null){
