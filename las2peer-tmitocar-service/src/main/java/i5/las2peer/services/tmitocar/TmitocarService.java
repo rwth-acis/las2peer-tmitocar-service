@@ -332,8 +332,8 @@ public class TmitocarService extends RESTService {
 						ObjectId graphFileId = null;
 						
 						System.out.println("Storing PDF to mongodb...");
-						feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf");
-						graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json");
+						feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf",body.getTopic()+"-feedback.pdf");
+						graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
 
 						if (feedbackFileId == null) {
 							System.out.println("Something went wrong storing the feedback for " + label1);
@@ -681,7 +681,12 @@ public class TmitocarService extends RESTService {
 
 			byte[] bytes = Base64.decode(encodedByteString);
 			String fname = textFileDetail.getFileName();
-			ObjectId uploaded = service.storeFile(label1 + "-" + fname, bytes);
+			String fileEnding = "txt";
+			int dotIndex = fname.lastIndexOf('.');
+			if (dotIndex > 0 && dotIndex < fname.length() - 1) {
+				fileEnding = fname.substring(dotIndex + 1);
+			}
+			ObjectId uploaded = service.storeFile(topic+"."+fileEnding, bytes);
 			if (uploaded == null) {
 				return Response.status(Status.BAD_REQUEST).entity("Could not store file " + fname).build();
 			}
@@ -898,7 +903,14 @@ public class TmitocarService extends RESTService {
 
 			byte[] bytes = Base64.decode(encodedByteString);
 			String fname = textFileDetail.getFileName();
-			ObjectId uploaded = service.storeFile(label1 + "-" + fname, bytes);
+
+			String fileEnding = "txt";
+			int dotIndex = fname.lastIndexOf('.');
+			if (dotIndex > 0 && dotIndex < fname.length() - 1) {
+				fileEnding = fname.substring(dotIndex + 1);
+			}
+
+			ObjectId uploaded = service.storeFile(topic+"."+fileEnding, bytes);
 			if (uploaded == null) {
 				return Response.status(Status.BAD_REQUEST).entity("Could not store file " + fname).build();
 			}
@@ -1023,7 +1035,12 @@ public class TmitocarService extends RESTService {
 			tmitoBody.setUuid(email);
 			byte[] bytes = Base64.decode(encodedByteString);
 			String fname = textFileDetail.getFileName();
-			ObjectId uploaded = service.storeFile(label1 + "-" + fname, bytes);
+			String fileEnding = "txt";
+			int dotIndex = fname.lastIndexOf('.');
+			if (dotIndex > 0 && dotIndex < fname.length() - 1) {
+				fileEnding = fname.substring(dotIndex + 1);
+			}
+			ObjectId uploaded = service.storeFile(topic +  "." + fileEnding, bytes);
 			if (uploaded == null) {
 				return Response.status(Status.BAD_REQUEST).entity("Could not store file " + fname).build();
 			}
@@ -1143,7 +1160,7 @@ public class TmitocarService extends RESTService {
 					String intent = rs.getString("intent");
 
 					JSONObject jsonObject = new JSONObject();
-					jsonObject.put("courseId", courseId);;
+					jsonObject.put("courseId", courseId);
 					jsonObject.put("text", text);
 					jsonObject.put("intent", intent);
 
@@ -1317,11 +1334,19 @@ public class TmitocarService extends RESTService {
 	}
 
 	private ObjectId storeLocalFileRemote(String fileName) {
+		return storeLocalFileRemote(fileName, null);
+	}
+
+	private ObjectId storeLocalFileRemote(String fileName, String renameFile) {
 		ObjectId fileId = null;
 		try {
 			byte[] pdfByte = Files.readAllBytes(
 					Paths.get("tmitocar/" + fileName));
-			fileId = storeFile(fileName, pdfByte);
+			if(fileName!=null){
+				fileId = storeFile(fileName, pdfByte);
+			}else{
+				fileId = storeFile(renameFile, pdfByte);
+			}
 			Files.delete(Paths.get("tmitocar/" + fileName));
 		} catch (Exception e) {
 			e.printStackTrace();
