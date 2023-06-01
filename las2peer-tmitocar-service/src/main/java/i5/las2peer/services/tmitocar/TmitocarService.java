@@ -1342,7 +1342,7 @@ public class TmitocarService extends RESTService {
 		try {
 			byte[] pdfByte = Files.readAllBytes(
 					Paths.get("tmitocar/" + fileName));
-			if(fileName!=null){
+			if(fileName==null){
 				fileId = storeFile(fileName, pdfByte);
 			}else{
 				fileId = storeFile(renameFile, pdfByte);
