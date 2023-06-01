@@ -157,6 +157,7 @@ public class TmitocarService extends RESTService {
 		getResourceConfig().register(WritingTask.class);
 		getResourceConfig().register(Analysis.class);
 		getResourceConfig().register(FAQ.class);
+		getResourceConfig().register(Credits.class);
 	}
 
 	private void initVariables() {
@@ -1295,6 +1296,111 @@ public class TmitocarService extends RESTService {
 			return Response.ok().entity(response.toString()).build();
 		}
 
+	}
+
+	@Api(value = "Credits Resource")
+	@SwaggerDefinition(info = @Info(title = "Credits Resource", version = "1.0.0", description = "Todo.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@Path("/credits")
+	public static class Credits {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+
+		@GET
+		@Path("/")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAllTasks", notes = "Returns writing task by id")
+		public Response getCreditsByUser(@QueryParam("email") String email, @QueryParam("courseId") int courseId) {
+			String user = service.getUuidByEmail(email);
+			JSONObject jsonBody = new JSONObject();
+			JSONParser p = new JSONParser(0);
+			try{
+				JSONObject acc = (JSONObject) p.parse(new String("{'account': { 'name': '" + user
+					+ "', 'homePage': 'https://chat.tech4comp.dbis.rwth-aachen.de'}}"));
+				
+				LrsCredentials res = service.getLrsCredentialsByCourse(courseId);
+				URL url = new URL(service.lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
+				if(res==null){
+					return Response.ok().entity("problem").build();
+				}
+				String toEncode = res.getClientKey()+":"+res.getClientSecret();
+				String encodedString = Base64.encodeBytes(toEncode.getBytes());
+				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+				conn.setRequestMethod("GET");
+				conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+				conn.setRequestProperty("X-Experience-API-Version", "1.0.3");
+				conn.setRequestProperty("Authorization", "Basic " + encodedString);
+				conn.setRequestProperty("Cache-Control", "no-cache");
+				conn.setUseCaches(false);
+				BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+				String inputLine;
+				StringBuffer response = new StringBuffer();
+				while ((inputLine = in.readLine()) != null) {
+					response.append(inputLine);
+				}
+				in.close();
+				conn.disconnect();
+			
+				jsonBody = (JSONObject) p.parse(response.toString());
+				JSONArray statements = (JSONArray) jsonBody.get("statements");
+				// Check statements with matching actor
+				// 12 Values as 12 assignments right?
+				int[] assignments = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+				for (Object index : statements) {
+					JSONObject jsonIndex = (JSONObject) index;
+					JSONObject actor = (JSONObject) jsonIndex.get("actor");
+					JSONObject account = (JSONObject) actor.get("account");
+					if (account.get("name").toString().equals(user)
+							|| account.get("name").toString().equals(user)) {
+						// JSONObject object = (JSONObject) jsonIndex.get("object");
+						JSONObject context = (JSONObject) jsonIndex.get("context");
+						// JSONObject definition = (JSONObject) object.get("definition");
+						JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
+						System.out.println("13");
+						System.out.println("14");
+						// check if its not a delete statement
+						if (extensions.get("https://tech4comp.de/xapi/context/extensions/filecontent") != null) {
+							JSONObject fileDetails = (JSONObject) extensions
+									.get("https://tech4comp.de/xapi/context/extensions/filecontent");
+							if (fileDetails.get("assignmentNumber") != null) {
+								String assignmentName = fileDetails.get("assignmentNumber").toString();
+								// JSONObject name = (JSONObject) definition.get("name");
+								// String assignmentName = name.getAsString("en-US");
+								try {
+									// int assignmentNumber = Integer.valueOf(assignmentName.split("t")[1]);
+									int assignmentNumber = Integer.valueOf(assignmentName);
+									assignments[assignmentNumber - 1]++;
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+								// System.out.println("Extracted actor is " + name.getAsString("en-US"));
+							}
+						}
+					}
+				}
+					String msg = "";
+					int credits = 0;
+					for (int i = 0; i < 12; i++) {
+						String number;
+						if (i < 9) {
+							number = "0" + String.valueOf(i + 1);
+						} else {
+							number = String.valueOf(i + 1);
+						}
+						if (assignments[i] > 0) {
+							credits++;
+						}
+						System.out.println("20");
+						msg += "Schreibaufgabe " + number + ": " + String.valueOf(assignments[i]) + "\n";
+					}
+					// How are the credits calculated?
+					msg += "Das hei\u00DFt, du hast bisher *" + credits * 2 + "* Leistunsprozente gesammelt. ";
+					jsonBody = new JSONObject();
+					jsonBody.put("text", msg);
+			} catch (Exception e){
+				e.printStackTrace();
+			}		
+			return Response.ok().entity(jsonBody.toString()).build();
+		}
 	}
 
 	private static String convertInputStreamToBase64(InputStream inputStream) throws IOException {
