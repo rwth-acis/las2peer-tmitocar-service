@@ -1312,7 +1312,7 @@ public class TmitocarService extends RESTService {
 		public Response getCreditsByUser(@QueryParam("email") String email, @QueryParam("courseId") int courseId) {
 			String user = service.getUuidByEmail(email);
 			JSONObject jsonBody = new JSONObject();
-			JSONParser p = new JSONParser(0);
+			JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
 			try{
 				JSONObject acc = (JSONObject) p.parse(new String("{'account': { 'name': '" + user
 					+ "', 'homePage': 'https://chat.tech4comp.dbis.rwth-aachen.de'}}"));
