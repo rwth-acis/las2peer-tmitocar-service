@@ -992,7 +992,6 @@ public class TmitocarService extends RESTService {
 		 * @param textInputStream the InputStream containing the text to compare
 		 * @param textFileDetail  the file details of the text file
 		 * @param type            the type of text (txt or pdf)
-		 * @param topic           the topic of the text (e.g. BiWi 5)
 		 * @param template        the template to use for the PDF report
 		 * @param wordSpec        the word specification for the PDF report
 		 * @return the id of the stored file
