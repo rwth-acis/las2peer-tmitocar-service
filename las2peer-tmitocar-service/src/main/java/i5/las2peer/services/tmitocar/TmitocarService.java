@@ -1656,7 +1656,7 @@ public class TmitocarService extends RESTService {
 	private String getTaskNameByIds(int course, int task){
 		String res = null;
 		try (Connection conn = getConnection();
-			PreparedStatement pstmt = conn.prepareStatement("SELECT title FROM writingtask WHERE courseìd = ? AND nr = ?")) {
+			PreparedStatement pstmt = conn.prepareStatement("SELECT title FROM writingtask WHERE courseid = ? AND nr = ?")) {
 
 			// Set the email parameter in the prepared statement
 			pstmt.setInt(1, course);
