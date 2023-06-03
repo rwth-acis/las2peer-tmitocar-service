@@ -1394,7 +1394,7 @@ public class TmitocarService extends RESTService {
 							credits++;
 						}
 						System.out.println("20");
-						msg += "Schreibaufgabe " + number + ": " + String.valueOf(assignments[i]) + "\n";
+						msg += "Schreibaufgabe " + number + ": " + String.valueOf(assignments[i]) + "<br>";
 					}
 					// How are the credits calculated?
 					msg += "Das hei\u00DFt, du hast bisher *" + credits * 2 + "* Leistunsprozente gesammelt. ";
