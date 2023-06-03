@@ -992,7 +992,6 @@ public class TmitocarService extends RESTService {
 		 * @param textInputStream the InputStream containing the text to compare
 		 * @param textFileDetail  the file details of the text file
 		 * @param type            the type of text (txt or pdf)
-		 * @param topic           the topic of the text (e.g. BiWi 5)
 		 * @param template        the template to use for the PDF report
 		 * @param wordSpec        the word specification for the PDF report
 		 * @return the id of the stored file
@@ -1007,8 +1006,7 @@ public class TmitocarService extends RESTService {
 		@ApiOperation(value = "compareText", notes = "Compares two texts and generates a PDF report")
 		public Response compareText(@PathParam("label1") String label1, @PathParam("label2") String label2,
 				@FormDataParam("file") InputStream textInputStream,
-				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
-				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
+				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type, @FormDataParam("template") String template,
 				@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
 			if (isActive.getOrDefault(label1, false)) {
 				JSONObject err = new JSONObject();
@@ -1026,6 +1024,10 @@ public class TmitocarService extends RESTService {
 			}
 			
 			isActive.put(label1, true);
+
+			String topic = service.getTaskNameByIds(courseId, Integer.parseInt(label2));
+
+
 			String encodedByteString = convertInputStreamToBase64(textInputStream);
 			TmitocarText tmitoBody = new TmitocarText();
 			tmitoBody.setTopic(topic);
@@ -1649,6 +1651,32 @@ public class TmitocarService extends RESTService {
 			e.printStackTrace();
 		}
 
+	}
+
+	private String getTaskNameByIds(int course, int task){
+		String res = null;
+		try (Connection conn = getConnection();
+			PreparedStatement pstmt = conn.prepareStatement("SELECT title FROM writingtask WHERE courseìd = ? AND nr = ?")) {
+
+			// Set the email parameter in the prepared statement
+			pstmt.setInt(1, course);
+			pstmt.setInt(2, task);
+
+			// Execute the query and retrieve the result set
+			try (ResultSet rs = pstmt.executeQuery()) {
+
+				// If the email exists in the table, the result set will contain one row with the UUID
+				if (rs.next()) {
+					res = rs.getString("title");
+				} else {
+					System.out.println("No task found for " + course + ":"+task);
+				}
+			}
+		} catch (SQLException e) {
+			// Handle any SQL errors
+			e.printStackTrace();
+		}
+		return res;
 	}
 
 	private String getUuidByEmail(String email){
