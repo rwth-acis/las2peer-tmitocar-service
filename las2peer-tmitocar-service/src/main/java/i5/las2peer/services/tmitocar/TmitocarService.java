@@ -579,6 +579,8 @@ public class TmitocarService extends RESTService {
 			ResultSet rs = null;
 			JSONArray jsonArray = new JSONArray();
 			String chatMessage = "";
+			String title = "";
+			int nr = tasknr;
 			try {
 				conn = service.getConnection();
 				if (courseId == 0) {
@@ -593,18 +595,19 @@ public class TmitocarService extends RESTService {
 
 				while (rs.next()) {
 					courseId = rs.getInt("courseid");
-					int nr = rs.getInt("nr");
+					nr = rs.getInt("nr");
 					String text = rs.getString("text");
-					String title = rs.getString("title");
+					title = rs.getString("title");
 
 					JSONObject jsonObject = new JSONObject();
 					jsonObject.put("courseId", courseId);
 					jsonObject.put("nr", nr);
+
 					jsonObject.put("text", text);
 					jsonObject.put("title", title);
 
 					jsonArray.add(jsonObject);
-					chatMessage += nr+": "+title+"\n<br>\n" + text + "\n<br>";
+					chatMessage += text + "\n<br>";
 				}
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block
@@ -627,6 +630,8 @@ public class TmitocarService extends RESTService {
 			JSONObject response = new JSONObject();
 			response.put("data", jsonArray);
 			response.put("chatMessage", chatMessage);
+			response.put("title", title);
+			response.put("nr", nr);
 			return Response.ok().entity(response.toString()).build();
 		}
 
