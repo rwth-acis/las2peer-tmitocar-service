@@ -1360,6 +1360,7 @@ public class TmitocarService extends RESTService {
 				for (Object index : statements) {
 					JSONObject jsonIndex = (JSONObject) index;
 					JSONObject actor = (JSONObject) jsonIndex.get("actor");
+					JSONObject verb = (JSONObject) jsonIndex.get("verb");
 					JSONObject account = (JSONObject) actor.get("account");
 					if (account.get("name").toString().equals(user)
 							|| account.get("name").toString().equals(user)) {
@@ -1369,7 +1370,7 @@ public class TmitocarService extends RESTService {
 						// JSONObject definition = (JSONObject) object.get("definition");
 						JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
 						// check if its not a delete statement
-						if (extensions.get("https://tech4comp.de/xapi/context/extensions/file") != null) {
+						if (extensions.get("https://tech4comp.de/xapi/context/extensions/file") != null && verb.get("id").toString().contains("sent_file")) {
 							JSONObject fileDetails = (JSONObject) extensions
 									.get("https://tech4comp.de/xapi/context/extensions/file");
 							if (fileDetails.get("taskNr") != null) {
