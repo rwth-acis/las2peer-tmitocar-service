@@ -1315,7 +1315,7 @@ public class TmitocarService extends RESTService {
 			String user = service.getUuidByEmail(email);
 			JSONObject jsonBody = new JSONObject();
 			JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-			if(courseId != 6){
+			if(courseId != 6 && courseId != 2){
 				JSONObject error = new JSONObject();
 				error.put("chateMessage","Keine Credits für deinen Kurs :).");
 				return Response.ok().entity(error.toString()).build();
