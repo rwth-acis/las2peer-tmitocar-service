@@ -390,6 +390,12 @@ public class TmitocarService extends RESTService {
 						error.put("error", e.toString());
 						callBack(callbackUrl, label1, label1, label2, error);
 					}
+					catch (Exception e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					}
 				}
 			}).start();
 			return true;
@@ -1470,7 +1476,6 @@ public class TmitocarService extends RESTService {
 			Files.delete(Paths.get("tmitocar/" + fileName));
 		} catch (Exception e) {
 			e.printStackTrace();
-			isActive.put(label1, false);
 			System.out.println("Failed storing PDF.");
 		}
 		return fileId;
