@@ -395,6 +395,7 @@ public class TmitocarService extends RESTService {
 			return true;
 		} catch (Exception e) {
 			e.printStackTrace();
+			isActive.put(label1, false);
 			error.put("error", e.toString());
 			callBack(callbackUrl, label1, label1, label2, error);
 			return false;
@@ -971,6 +972,7 @@ public class TmitocarService extends RESTService {
 					Files.delete(Paths.get("tmitocar/texts/" + label1 + "/" + label1 + "-modell" + ".pdf"));
 				} catch (Exception e) {
 					e.printStackTrace();
+					isActive.put(label1, false);
 					System.out.println("Failed storing PDF.");
 				}
 			} else {
@@ -1468,6 +1470,7 @@ public class TmitocarService extends RESTService {
 			Files.delete(Paths.get("tmitocar/" + fileName));
 		} catch (Exception e) {
 			e.printStackTrace();
+			isActive.put(label1, false);
 			System.out.println("Failed storing PDF.");
 		}
 		return fileId;
