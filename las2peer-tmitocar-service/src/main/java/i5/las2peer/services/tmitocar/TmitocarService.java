@@ -76,6 +76,8 @@ import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
 import org.apache.pdfbox.pdfparser.PDFParser;
+import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.bson.BsonDocument;
 import org.bson.BsonInt64;
 import org.bson.BsonObjectId;
@@ -1490,6 +1492,22 @@ public class TmitocarService extends RESTService {
 		}
 
 		return text;
+	}
+
+	private String readDocXFile(String fileName) {
+		String parsedText = "";
+		File file = new File(fileName);
+		try {
+			FileInputStream inputStream = new FileInputStream(file);
+			XWPFDocument document = new XWPFDocument(inputStream);
+			XWPFWordExtractor extractor = new XWPFWordExtractor(document);
+			parsedText = extractor.getText();
+			inputStream.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return parsedText;
 	}
 
 	private String readPDFFile(String fileName) {
