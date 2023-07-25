@@ -76,6 +76,8 @@ import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
 import org.apache.pdfbox.pdfparser.PDFParser;
+import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.bson.BsonDocument;
 import org.bson.BsonInt64;
 import org.bson.BsonObjectId;
@@ -457,6 +459,10 @@ public class TmitocarService extends RESTService {
 							System.out.println(decodedBytes);
 							FileUtils.writeByteArrayToFile(f, decodedBytes);
 							textContent = readPDFFile("tmitocar/texts/" + user + "/" + fileName);
+						} else if (type.equalsIgnoreCase("application/vnd.openxmlformats-officedocument.wordprocessingml.document") || type.equalsIgnoreCase("docx")) {
+							byte[] decodedBytes = Base64.decode(body.getText());
+							FileUtils.writeByteArrayToFile(f, decodedBytes);
+							textContent = readDocXFile("tmitocar/texts/" + user + "/" + fileName);
 						}
 						if (textContent.replaceAll("\\s", "").length() < 350) {
 							System.out.println("not enough words");
@@ -656,7 +662,7 @@ public class TmitocarService extends RESTService {
 		 * @param label1          the first label (user text)
 		 * @param textInputStream the InputStream containing the text to compare
 		 * @param textFileDetail  the file details of the text file
-		 * @param type            the type of text (txt or pdf)
+		 * @param type            the type of text (txt, pdf or docx)
 		 * @return id of the stored file
 		 * @throws ParseException if there is an error parsing the input parameters
 		 * @throws IOException    if there is an error reading the input stream
@@ -859,7 +865,7 @@ public class TmitocarService extends RESTService {
 
 
 	@Api(value = "Feedback Resource")
-	@SwaggerDefinition(info = @Info(title = "Feedback Resource", version = "1.0.0", description = "This API is responsible for handling text documents in txt or pdf format and sending them to T-MITOCAR for processing. The feedback is then saved in a MongoDB and the document IDs are returned.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@SwaggerDefinition(info = @Info(title = "Feedback Resource", version = "1.0.0", description = "This API is responsible for handling text documents in txt, pdf or docx format and sending them to T-MITOCAR for processing. The feedback is then saved in a MongoDB and the document IDs are returned.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
 	@Path("/feedback")
 	public static class Feedback {
 		TmitocarService service = (TmitocarService) Context.get().getService();
@@ -870,7 +876,7 @@ public class TmitocarService extends RESTService {
 		 * @param label1          the first label (user text)
 		 * @param textInputStream the InputStream containing the text to compare
 		 * @param textFileDetail  the file details of the text file
-		 * @param type            the type of text (txt or pdf)
+		 * @param type            the type of text (txt, pdf or docx)
 		 * @param topic           the topic of the text (e.g. BiWi 5)
 		 * @param template        the template to use for the PDF report
 		 * @param wordSpec        the word specification for the PDF report
@@ -1004,7 +1010,7 @@ public class TmitocarService extends RESTService {
 		 * @param label2          the second label (expert or second user text)
 		 * @param textInputStream the InputStream containing the text to compare
 		 * @param textFileDetail  the file details of the text file
-		 * @param type            the type of text (txt or pdf)
+		 * @param type            the type of text (txt, pdf or docx)
 		 * @param template        the template to use for the PDF report
 		 * @param wordSpec        the word specification for the PDF report
 		 * @return the id of the stored file
@@ -1492,6 +1498,22 @@ public class TmitocarService extends RESTService {
 		return text;
 	}
 
+	private String readDocXFile(String fileName) {
+		String parsedText = "";
+		File file = new File(fileName);
+		try {
+			FileInputStream inputStream = new FileInputStream(file);
+			XWPFDocument document = new XWPFDocument(inputStream);
+			XWPFWordExtractor extractor = new XWPFWordExtractor(document);
+			parsedText = extractor.getText();
+			inputStream.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return parsedText;
+	}
+
 	private String readPDFFile(String fileName) {
 		org.apache.pdfbox.pdfparser.PDFParser parser = null;
 		org.apache.pdfbox.pdmodel.PDDocument pdDoc = null;
@@ -1527,6 +1549,8 @@ public class TmitocarService extends RESTService {
 			return name + ".txt";
 		} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
 			return name + ".pdf";
+		} else if (type.equalsIgnoreCase("application/vnd.openxmlformats-officedocument.wordprocessingml.document") || type.equalsIgnoreCase("docx")) {
+			return name + ".docx";
 		}
 		return name + "txt";
 	}
@@ -1557,6 +1581,10 @@ public class TmitocarService extends RESTService {
 				System.out.println(decodedBytes);
 				FileUtils.writeByteArrayToFile(f, decodedBytes);
 				textContent = readPDFFile("tmitocar/texts/" + name + "/" + fileName);
+			} else if (type.equalsIgnoreCase("application/vnd.openxmlformats-officedocument.wordprocessingml.document") || type.equalsIgnoreCase("docx")) {
+				byte[] decodedBytes = Base64.decode(text);
+				FileUtils.writeByteArrayToFile(f, decodedBytes);
+				textContent = readDocXFile("tmitocar/texts/" + name + "/" + fileName);
 			} else {
 				System.out.println("wrong type");
 				throw new IOException();
@@ -1587,6 +1615,11 @@ public class TmitocarService extends RESTService {
 		}
 		try {
 			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name + ".pdf"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		try {
+			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name + ".docx"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
