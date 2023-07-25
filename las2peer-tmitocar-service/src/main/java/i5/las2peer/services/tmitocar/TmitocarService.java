@@ -662,7 +662,7 @@ public class TmitocarService extends RESTService {
 		 * @param label1          the first label (user text)
 		 * @param textInputStream the InputStream containing the text to compare
 		 * @param textFileDetail  the file details of the text file
-		 * @param type            the type of text (txt, pdf or docx)
+		 * @param type            the type of text (txt, pdf, docx)
 		 * @return id of the stored file
 		 * @throws ParseException if there is an error parsing the input parameters
 		 * @throws IOException    if there is an error reading the input stream
