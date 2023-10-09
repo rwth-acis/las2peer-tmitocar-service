@@ -1729,7 +1729,7 @@ public class TmitocarService extends RESTService {
 	private String getUuidByEmail(String email){
 		String res = null;
 		try (Connection conn = getConnection();
-			PreparedStatement pstmt = conn.prepareStatement("SELECT uuid FROM personmapping WHERE email = ?")) {
+			PreparedStatement pstmt = conn.prepareStatement("SELECT pm.uuid FROM personmapping pm JOIN person p ON pm.personid = p.id WHERE p.email = ?")) {
 
 			// Set the email parameter in the prepared statement
 			pstmt.setString(1, email);
