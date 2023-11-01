@@ -1,5 +1,11 @@
 # tmitocar dependencies (jq, ruby, coreutils)
 FROM openjdk:17-jdk-buster
+RUN set -x \
+    && apt-get update \
+    \
+    #: force installing jing due to different issues regarding to java runtime environment \
+    #: setup issues (see: https://stackoverflow.com/q/76872534/12171959)
+    && apt-get install jing -y 
 RUN apt-get update && apt-get install -y default-mysql-client ant jq build-essential libffi-dev ruby ruby-bundler dos2unix coreutils curl tzdata git gcc cmake libpng-dev graphviz wkhtmltopdf pandoc rsync poppler-utils pkg-config
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
