@@ -61,7 +61,8 @@ set_in_service_config pgsqlUser ${PGSQL_USER}
 set_in_service_config pgsqlPassword ${PGSQL_PASSWORD}
 set_in_service_config pgsqlDB ${PGSQL_DB}
 
-
+set_in_service_config xapiUrl ${XAPI_URL}
+set_in_service_config xapiHomepage ${XAPI_HOMEPAGE}
 # prevent glob expansion in lib/*
 set -f
 LAUNCH_COMMAND='java -cp lib/* --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED i5.las2peer.tools.L2pNodeLauncher -s service -p '"${LAS2PEER_PORT} ${SERVICE_EXTRA_ARGS}"
