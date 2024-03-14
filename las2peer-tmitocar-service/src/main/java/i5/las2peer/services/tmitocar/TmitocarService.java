@@ -362,7 +362,7 @@ public class TmitocarService extends RESTService {
 								// user has accepted
 							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
 							if(lrsCredentials!=null){
-								JSONObject xapi = prepareXapiStatement(uuid, "received_file", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
+								JSONObject xapi = prepareXapiStatement(uuid, "read", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
 								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 								String encodedString = Base64.encodeBytes(toEncode.getBytes());
 								sendXAPIStatement(xapi, encodedString);
@@ -944,7 +944,7 @@ public class TmitocarService extends RESTService {
 				// user has accepted
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
-					JSONObject xapi = service.prepareXapiStatement(uuid, "sent_file", topic, courseId, task, uploaded.toString(),null,null);
+					JSONObject xapi = service.prepareXapiStatement(uuid, "sent", topic, courseId, task, uploaded.toString(),null,null);
 					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 
@@ -1087,7 +1087,7 @@ public class TmitocarService extends RESTService {
 				// user has accepted
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
-					JSONObject xapi = service.prepareXapiStatement(uuid, "sent_file", topic, courseId, Integer.parseInt(label2), uploaded.toString(),null,null);
+					JSONObject xapi = service.prepareXapiStatement(uuid, "sent", topic, courseId, Integer.parseInt(label2), uploaded.toString(),null,null);
 					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 					service.sendXAPIStatement(xapi, encodedString);
@@ -1384,9 +1384,9 @@ public class TmitocarService extends RESTService {
 						// JSONObject definition = (JSONObject) object.get("definition");
 						JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
 						// check if its not a delete statement
-						if (extensions.get("https://tech4comp.de/xapi/context/extensions/file") != null && verb.get("id").toString().contains("sent_file")) {
+						if (extensions.get("https://xapi.tech4comp.dbis.rwth-aachen.de/definitions/generic/extensions/context/assignment") != null && verb.get("id").toString().contains("sent")) {
 							JSONObject fileDetails = (JSONObject) extensions
-									.get("https://tech4comp.de/xapi/context/extensions/file");
+									.get("https://xapi.tech4comp.dbis.rwth-aachen.de/definitions/generic/extensions/context/assignment");
 							if (fileDetails.get("taskNr") != null) {
 								String assignmentName = fileDetails.get("taskNr").toString();
 								// JSONObject name = (JSONObject) definition.get("name");
@@ -1785,24 +1785,24 @@ public class TmitocarService extends RESTService {
 		JSONObject account = new JSONObject();
 
 		account.put("name", user);
-		account.put("homePage", "https://chat.tech4comp.dbis.rwth-aachen.de");
+		account.put("homePage", "https://workbench.tech4comp.dbis.rwth-aachen.de");
 		actor.put("account", account);
 		
 		JSONObject verb = (JSONObject) p
-				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'https://tech4comp.de/xapi/verb/"+verbId+"'}"));
+				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'https://xapi.tech4comp.dbis.rwth-aachen.de/definitions/chat/verbs/"+verbId+"'}"));
 		JSONObject object = (JSONObject) p
 				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + topic
 						+ "'}, 'description':{'en-US':'" + topic
-						+ "'}, 'type':'https://tech4comp.de/xapi/activitytype/file'},'id':'https://tech4comp.de/tmitocar/file/"
+						+ "'}, 'type':'https://xapi.tech4comp.dbis.rwth-aachen.de/definitions/chat/activities/file'},'id':'https://tech4comp.de/tmitocar/file/"
 						+ fileId + "', 'objectType':'Activity'}"));
 		JSONObject context = (JSONObject) p.parse(new String(
-				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/file':{'id':'"
+				"{'extensions':{'https://xapi.tech4comp.dbis.rwth-aachen.de/definitions/generic/extensions/context/assignment':{'id':'"
 						+ fileId + "','topic':'"
 						+ topic
 						+ "','course':'" + course + "','taskNr':'" + taskNr + "'}}}"));
 						if (fileId2!= null && source != null){
 							context = (JSONObject) p.parse(new String(
-				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/file':{'id':'"
+				"{'extensions':{'https://xapi.tech4comp.dbis.rwth-aachen.de/definitions/generic/activities/file':{'id':'"
 						+ fileId + "','id2':'"
 						+ fileId2 + "','source':'"
 						+ source + "','topic':'"
