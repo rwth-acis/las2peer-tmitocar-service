@@ -364,7 +364,6 @@ public class TmitocarService extends RESTService {
 							if (uuid!=null){
 								// user has accepted
 							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
-							System.out.println(lrsCredentials);
 							if(lrsCredentials!=null){
 								JSONObject xapi = prepareXapiStatement(uuid, "read", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
 								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
@@ -1789,24 +1788,24 @@ public class TmitocarService extends RESTService {
 		JSONObject account = new JSONObject();
 
 		account.put("name", user);
-		account.put("homePage", xapiHomepage);
+		account.put("homePage", xapiHomepage.toString());
 		actor.put("account", account);
-		
+		System.out.println(account);
 		JSONObject verb = (JSONObject) p
-				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'" + xapiUrl + "/definitions/chat/verbs/" +verbId+"'}"));
+				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'" + xapiUrl.toString() + "/definitions/chat/verbs/" +verbId+"'}"));
 		JSONObject object = (JSONObject) p
 				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + topic
 						+ "'}, 'description':{'en-US':'" + topic
-						+ "'}, 'type':'"+ xapiUrl + "/definitions/chat/activities/file'},'id':'https://tech4comp.de/tmitocar/file/"
+						+ "'}, 'type':'"+ xapiUrl.toString() + "/definitions/chat/activities/file'},'id':'https://tech4comp.de/tmitocar/file/"
 						+ fileId + "', 'objectType':'Activity'}"));
 		JSONObject context = (JSONObject) p.parse(new String(
-				"{'extensions':{'" + xapiUrl + "/definitions/generic/extensions/context/assignment':{'id':'"
+				"{'extensions':{'" + xapiUrl.toString() + "/definitions/generic/extensions/context/assignment':{'id':'"
 						+ fileId + "','topic':'"
 						+ topic
 						+ "','course':'" + course + "','taskNr':'" + taskNr + "'}}}"));
 						if (fileId2!= null && source != null){
 							context = (JSONObject) p.parse(new String(
-				"{'extensions':{'"+ xapiUrl + "/definitions/generic/activities/file':{'id':'"
+				"{'extensions':{'"+ xapiUrl.toString() + "/definitions/generic/activities/file':{'id':'"
 						+ fileId + "','id2':'"
 						+ fileId2 + "','source':'"
 						+ source + "','topic':'"
@@ -1822,6 +1821,7 @@ public class TmitocarService extends RESTService {
 		xAPI.put("actor", actor);
 		xAPI.put("object", object);
 		xAPI.put("verb", verb);
+		System.out.println(xAPI);
 		return xAPI;
 	}
 
