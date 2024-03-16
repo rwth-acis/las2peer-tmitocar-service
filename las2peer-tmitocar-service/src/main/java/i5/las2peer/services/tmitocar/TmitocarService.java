@@ -364,6 +364,7 @@ public class TmitocarService extends RESTService {
 							if (uuid!=null){
 								// user has accepted
 							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
+							System.out.println(lrsCredentials);
 							if(lrsCredentials!=null){
 								JSONObject xapi = prepareXapiStatement(uuid, "read", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
 								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
@@ -1344,7 +1345,7 @@ public class TmitocarService extends RESTService {
 			}
 			try{
 				JSONObject acc = (JSONObject) p.parse(new String("{'account': { 'name': '" + user
-					+ "', 'homePage': "+ xapiHomepage + "}}"));
+					+ "', 'homePage': '"+ xapiHomepage.toString() + "'}}"));
 				
 				LrsCredentials res = service.getLrsCredentialsByCourse(courseId);
 				URL url = new URL(service.lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
