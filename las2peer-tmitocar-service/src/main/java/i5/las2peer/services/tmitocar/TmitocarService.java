@@ -365,7 +365,7 @@ public class TmitocarService extends RESTService {
 								// user has accepted
 							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
 							if(lrsCredentials!=null){
-								JSONObject xapi = prepareXapiStatement(uuid, "read", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
+								JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
 								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 								String encodedString = Base64.encodeBytes(toEncode.getBytes());
 								sendXAPIStatement(xapi, encodedString);
@@ -947,7 +947,7 @@ public class TmitocarService extends RESTService {
 				// user has accepted
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
-					JSONObject xapi = service.prepareXapiStatement(uuid, "sent", topic, courseId, task, uploaded.toString(),null,null);
+					JSONObject xapi = service.prepareXapiStatement(uuid, "uploaded_task", topic, courseId, task, uploaded.toString(),null,null);
 					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 
@@ -1090,7 +1090,7 @@ public class TmitocarService extends RESTService {
 				// user has accepted
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
-					JSONObject xapi = service.prepareXapiStatement(uuid, "sent", topic, courseId, Integer.parseInt(label2), uploaded.toString(),null,null);
+					JSONObject xapi = service.prepareXapiStatement(uuid, "received_feedback", topic, courseId, Integer.parseInt(label2), uploaded.toString(),null,null);
 					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 					service.sendXAPIStatement(xapi, encodedString);
@@ -1793,17 +1793,16 @@ public class TmitocarService extends RESTService {
 		actor.put("account", account);
 		System.out.println(account);
 		JSONObject verb = (JSONObject) p
-				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'" + xapiUrl + "/definitions/chat/verbs/" +verbId+"'}"));
+				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'" + xapiUrl + "/definitions/mwb/verb/" +verbId+"'}"));
 		JSONObject object = (JSONObject) p
 				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + topic
-						+ "'}, 'extensions:': {'" + xapiUrl + "/definitions/mwb/object/course': {'id': '" + course + "'}}, 'description':{'en-US':'" + topic
-						+ "'}, 'type':'"+ xapiUrl + "/definitions/chat/activities/file'},'id':'https://tech4comp.de/tmitocar/file/"
-						+ fileId + "', 'objectType':'Activity'}"));
+						+ "'}, 'extensions:': {'" + xapiUrl + "/definitions/mwb/object/course': {'id': " + course + "}}, 'description':{'en-US':'" + topic
+						+ "'}, 'type':'"+ xapiUrl + "/definitions/chat/activities/file'}, 'objectType':'Activity'}"));
 		JSONObject context = (JSONObject) p.parse(new String(
 				"{'extensions':{'" + xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'id':'"
 						+ fileId + "','topic':'"
 						+ topic
-						+ "','course':'" + course + "','taskNr':'" + taskNr + "'}}}"));
+						+ "','taskNr':" + taskNr + "}}}"));
 						if (fileId2!= null && source != null){
 							context = (JSONObject) p.parse(new String(
 				"{'extensions':{'"+ xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'graphfileId':'"
@@ -1811,7 +1810,7 @@ public class TmitocarService extends RESTService {
 						+ fileId2 + "','source':'"
 						+ source + "','topic':'"
 						+ topic
-						+ "','course':'" + course + "','taskNr':'" + taskNr + "'}}}"));
+						+ ",'taskNr':" + taskNr + "}}}"));
 						}
 		JSONObject xAPI = new JSONObject();
 
