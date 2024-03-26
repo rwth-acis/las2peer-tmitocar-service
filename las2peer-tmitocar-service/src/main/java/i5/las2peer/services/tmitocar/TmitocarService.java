@@ -1797,7 +1797,7 @@ public class TmitocarService extends RESTService {
 		JSONObject object = (JSONObject) p
 				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + topic
 						+ "'}, 'extensions':{'" + xapiUrl + "/definitions/mwb/object/course': {'id': " + course + "}}, 'description':{'en-US':'" + topic
-						+ "'}, 'type':'"+ xapiUrl + "/definitions/chat/activities/file'}, 'objectType':'Activity'}"));
+						+ "'}, 'type':'"+ xapiUrl + "/definitions/chat/activities/file'}, 'id': '" + fileId + "','objectType':'Activity'}"));
 		JSONObject context = (JSONObject) p.parse(new String(
 				"{'extensions':{'" + xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'id':'"
 						+ fileId + "','topic':'"
