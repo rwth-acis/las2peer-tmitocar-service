@@ -772,12 +772,8 @@ public class TmitocarService extends RESTService {
 
 					// Parse the JSON string into a JSONObject
 					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
-					System.out.println("getCommonWords:");
-					System.out.println(jsonObject);
 					String formattedMessage = "Danke, besprich das gern auch mit Kommiliton:innen und deinem/r Dozent:in. Wenn ich jetzt deinen Text und den Expertentext vergleiche, dann tauchen in beiden Texten folgende Begriffe als wesentlich auf:\n";
 					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeSchnittmenge");
-					System.out.println("SchnittmengenArray:");
-					System.out.println(bSchnittmengeArray);
 					formattedMessage += formatJSONArray(bSchnittmengeArray);
 					formattedMessage += "Wenn du nochmal an die Aufgabenstellung denkst, fehlen Schlüsselbegriffe, die du noch ergänzen würdest? Wenn ja, welche?";
 					JSONObject resBody = new JSONObject();
@@ -835,7 +831,6 @@ public class TmitocarService extends RESTService {
 
 					// Parse the JSON string into a JSONObject
 					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
-					System.out.println(jsonObject);
 					String formattedMessage = "Übrigens gibt es noch folgende Begriffe, die im Expertentext genannt wurden, aber noch nicht in deinem Text auftauchen::\n";
 					formattedMessage += "-------------------------\n";
 					JSONArray bDiffArray = (JSONArray) jsonObject.get("BegriffeDiffB");
@@ -843,8 +838,6 @@ public class TmitocarService extends RESTService {
 					formattedMessage += "Überleg nochmal, welche davon du sinnvoll in deinen Text einbauen kannst und möchtest.";
 					JSONObject resBody = new JSONObject();
 					resBody.put("formattedMessage",formatJSONArray(bDiffArray));
-					System.out.println("DiffArray");
-					System.out.println(bDiffArray);
 					return Response.ok(resBody.toString()).build();
 				} catch (MongoException me) {
 					System.err.println(me);
