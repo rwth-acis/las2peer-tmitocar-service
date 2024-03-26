@@ -365,7 +365,7 @@ public class TmitocarService extends RESTService {
 								// user has accepted
 							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
 							if(lrsCredentials!=null){
-								JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
+								JSONObject xapi = prepareXapiStatement(uuid, "uploaded_task", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
 								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 								String encodedString = Base64.encodeBytes(toEncode.getBytes());
 								sendXAPIStatement(xapi, encodedString);
@@ -772,7 +772,8 @@ public class TmitocarService extends RESTService {
 
 					// Parse the JSON string into a JSONObject
 					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
-
+					System.out.println("getCommonWords: \n")
+					System.out.println(jsonObject);
 					String formattedMessage = "Danke, besprich das gern auch mit Kommiliton:innen und deinem/r Dozent:in. Wenn ich jetzt deinen Text und den Expertentext vergleiche, dann tauchen in beiden Texten folgende Begriffe als wesentlich auf:\n";
 					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeSchnittmenge");
 					formattedMessage += formatJSONArray(bSchnittmengeArray);
@@ -832,7 +833,7 @@ public class TmitocarService extends RESTService {
 
 					// Parse the JSON string into a JSONObject
 					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
-
+					System.out.println(jsonObject);
 					String formattedMessage = "Übrigens gibt es noch folgende Begriffe, die im Expertentext genannt wurden, aber noch nicht in deinem Text auftauchen::\n";
 					formattedMessage += "-------------------------\n";
 					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeDiffB");
@@ -840,7 +841,7 @@ public class TmitocarService extends RESTService {
 					formattedMessage += "Überleg nochmal, welche davon du sinnvoll in deinen Text einbauen kannst und möchtest.";
 					JSONObject resBody = new JSONObject();
 					resBody.put("formattedMessage",formatJSONArray(bSchnittmengeArray));
-					
+					System.out.println(bSchnittmengeArray);
 					return Response.ok(resBody.toString()).build();
 				} catch (MongoException me) {
 					System.err.println(me);
@@ -1821,7 +1822,6 @@ public class TmitocarService extends RESTService {
 		xAPI.put("actor", actor);
 		xAPI.put("object", object);
 		xAPI.put("verb", verb);
-		System.out.println(xAPI);
 		return xAPI;
 	}
 
