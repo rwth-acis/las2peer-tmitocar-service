@@ -772,7 +772,7 @@ public class TmitocarService extends RESTService {
 
 					// Parse the JSON string into a JSONObject
 					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
-					System.out.println("getCommonWords: \n")
+					System.out.println("getCommonWords: \n");
 					System.out.println(jsonObject);
 					String formattedMessage = "Danke, besprich das gern auch mit Kommiliton:innen und deinem/r Dozent:in. Wenn ich jetzt deinen Text und den Expertentext vergleiche, dann tauchen in beiden Texten folgende Begriffe als wesentlich auf:\n";
 					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeSchnittmenge");
