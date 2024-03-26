@@ -1810,7 +1810,7 @@ public class TmitocarService extends RESTService {
 						+ fileId2 + "','source':'"
 						+ source + "','topic':'"
 						+ topic
-						+ ",'taskNr':" + taskNr + "}}}"));
+						+ "','taskNr':" + taskNr + "}}}"));
 						}
 		JSONObject xAPI = new JSONObject();
 
