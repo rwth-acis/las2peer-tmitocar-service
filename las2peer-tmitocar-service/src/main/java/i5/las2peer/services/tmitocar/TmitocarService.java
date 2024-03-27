@@ -130,6 +130,9 @@ public class TmitocarService extends RESTService {
 
 	private static BasicDataSource dataSource;
 
+	private String xapiUrl;
+	private String xapiHomepage;
+
 	private final static String AUTH_FILE = "tmitocar/auth.json";
 
 
@@ -362,7 +365,7 @@ public class TmitocarService extends RESTService {
 								// user has accepted
 							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
 							if(lrsCredentials!=null){
-								JSONObject xapi = prepareXapiStatement(uuid, "received_file", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
+								JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
 								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 								String encodedString = Base64.encodeBytes(toEncode.getBytes());
 								sendXAPIStatement(xapi, encodedString);
@@ -769,7 +772,6 @@ public class TmitocarService extends RESTService {
 
 					// Parse the JSON string into a JSONObject
 					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
-
 					String formattedMessage = "Danke, besprich das gern auch mit Kommiliton:innen und deinem/r Dozent:in. Wenn ich jetzt deinen Text und den Expertentext vergleiche, dann tauchen in beiden Texten folgende Begriffe als wesentlich auf:\n";
 					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeSchnittmenge");
 					formattedMessage += formatJSONArray(bSchnittmengeArray);
@@ -829,15 +831,13 @@ public class TmitocarService extends RESTService {
 
 					// Parse the JSON string into a JSONObject
 					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
-
 					String formattedMessage = "Übrigens gibt es noch folgende Begriffe, die im Expertentext genannt wurden, aber noch nicht in deinem Text auftauchen::\n";
 					formattedMessage += "-------------------------\n";
-					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeDiffB");
-					formattedMessage += formatJSONArray(bSchnittmengeArray);
+					JSONArray bDiffArray = (JSONArray) jsonObject.get("BegriffeDiffB");
+					formattedMessage += formatJSONArray(bDiffArray);
 					formattedMessage += "Überleg nochmal, welche davon du sinnvoll in deinen Text einbauen kannst und möchtest.";
 					JSONObject resBody = new JSONObject();
-					resBody.put("formattedMessage",formatJSONArray(bSchnittmengeArray));
-					
+					resBody.put("formattedMessage",formatJSONArray(bDiffArray));
 					return Response.ok(resBody.toString()).build();
 				} catch (MongoException me) {
 					System.err.println(me);
@@ -944,7 +944,7 @@ public class TmitocarService extends RESTService {
 				// user has accepted
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
-					JSONObject xapi = service.prepareXapiStatement(uuid, "sent_file", topic, courseId, task, uploaded.toString(),null,null);
+					JSONObject xapi = service.prepareXapiStatement(uuid, "uploaded_task", topic, courseId, task, uploaded.toString(),null,null);
 					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 
@@ -1087,7 +1087,7 @@ public class TmitocarService extends RESTService {
 				// user has accepted
 				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
 				if(lrsCredentials!=null){
-					JSONObject xapi = service.prepareXapiStatement(uuid, "sent_file", topic, courseId, Integer.parseInt(label2), uploaded.toString(),null,null);
+					JSONObject xapi = service.prepareXapiStatement(uuid, "uploaded_task", topic, courseId, Integer.parseInt(label2), uploaded.toString(),null,null);
 					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 					String encodedString = Base64.encodeBytes(toEncode.getBytes());
 					service.sendXAPIStatement(xapi, encodedString);
@@ -1341,7 +1341,7 @@ public class TmitocarService extends RESTService {
 			}
 			try{
 				JSONObject acc = (JSONObject) p.parse(new String("{'account': { 'name': '" + user
-					+ "', 'homePage': 'https://chat.tech4comp.dbis.rwth-aachen.de'}}"));
+					+ "', 'homePage': '"+ service.xapiHomepage + "'}}"));
 				
 				LrsCredentials res = service.getLrsCredentialsByCourse(courseId);
 				URL url = new URL(service.lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
@@ -1384,9 +1384,9 @@ public class TmitocarService extends RESTService {
 						// JSONObject definition = (JSONObject) object.get("definition");
 						JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
 						// check if its not a delete statement
-						if (extensions.get("https://tech4comp.de/xapi/context/extensions/file") != null && verb.get("id").toString().contains("sent_file")) {
+						if (extensions.get(service.xapiUrl + "/definitions/mwb/extensions/context/activity_data") != null && verb.get("id").toString().contains("sent")) {
 							JSONObject fileDetails = (JSONObject) extensions
-									.get("https://tech4comp.de/xapi/context/extensions/file");
+									.get(service.xapiUrl + "/definitions/mwb/extensions/context/activity_data");
 							if (fileDetails.get("taskNr") != null) {
 								String assignmentName = fileDetails.get("taskNr").toString();
 								// JSONObject name = (JSONObject) definition.get("name");
@@ -1690,6 +1690,7 @@ public class TmitocarService extends RESTService {
 				response.append(line);
 			}
 			logger.info(response.toString());
+			System.out.println("XAPI Statement sent.");
 
 			conn.disconnect();
 		} catch (MalformedURLException e) {
@@ -1783,31 +1784,30 @@ public class TmitocarService extends RESTService {
 		JSONObject actor = new JSONObject();
 		actor.put("objectType", "Agent");
 		JSONObject account = new JSONObject();
-
+		System.out.println("Homepage is: " + xapiHomepage);
 		account.put("name", user);
-		account.put("homePage", "https://chat.tech4comp.dbis.rwth-aachen.de");
+		account.put("homePage", xapiHomepage);
 		actor.put("account", account);
-		
+		System.out.println(account);
 		JSONObject verb = (JSONObject) p
-				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'https://tech4comp.de/xapi/verb/"+verbId+"'}"));
+				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'" + xapiUrl + "/definitions/mwb/verb/" +verbId+"'}"));
 		JSONObject object = (JSONObject) p
 				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + topic
-						+ "'}, 'description':{'en-US':'" + topic
-						+ "'}, 'type':'https://tech4comp.de/xapi/activitytype/file'},'id':'https://tech4comp.de/tmitocar/file/"
-						+ fileId + "', 'objectType':'Activity'}"));
+						+ "'}, 'extensions':{'" + xapiUrl + "/definitions/mwb/object/course': {'id': " + course + "}}, 'description':{'en-US':'" + topic
+						+ "'}, 'type':'"+ xapiUrl + "/definitions/chat/activities/file'}, 'id':'" + xapiUrl + "/definitions/chat/activities/file/" + fileId + "','objectType':'Activity'}"));
 		JSONObject context = (JSONObject) p.parse(new String(
-				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/file':{'id':'"
+				"{'extensions':{'" + xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'id':'"
 						+ fileId + "','topic':'"
 						+ topic
-						+ "','course':'" + course + "','taskNr':'" + taskNr + "'}}}"));
+						+ "','taskNr':" + taskNr + "}}}"));
 						if (fileId2!= null && source != null){
 							context = (JSONObject) p.parse(new String(
-				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/file':{'id':'"
-						+ fileId + "','id2':'"
+				"{'extensions':{'"+ xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'graphfileId':'"
+						+ fileId + "','feedbackId':'"
 						+ fileId2 + "','source':'"
 						+ source + "','topic':'"
 						+ topic
-						+ "','course':'" + course + "','taskNr':'" + taskNr + "'}}}"));
+						+ "','taskNr':" + taskNr + "}}}"));
 						}
 		JSONObject xAPI = new JSONObject();
 
