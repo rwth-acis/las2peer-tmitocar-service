@@ -344,8 +344,8 @@ public class TmitocarService extends RESTService {
 							HttpResponse<String> serviceResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
 							int responseCode = serviceResponse.statusCode();
 							System.out.println("Response Code:" + responseCode);
-							System.out.println("Response Text" + serviceResponse.body())
-						} catch {
+							System.out.println("Response Text" + serviceResponse.body());
+						} catch (Exception e) {
 							System.out.println("Error occured.");
 						}
 						// Store usertext with label
