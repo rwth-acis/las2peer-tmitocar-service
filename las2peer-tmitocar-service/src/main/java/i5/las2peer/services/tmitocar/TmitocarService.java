@@ -14,6 +14,9 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.logging.Level;
@@ -312,15 +315,39 @@ public class TmitocarService extends RESTService {
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
 		System.out.println("Block " + label1);
 		JSONObject error = new JSONObject();
+		JSONObject newText = new JSONObject();
 		try {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
+					newText.put("userId", label1);
+					newText.put("studentInput", body.getText());
+					newText.put("taskNr", label2);
+					newText.put("timestamp", System.currentTimeMillis());
+					newText.put("keywords", "[Python, AWS]");
 
 					storeFileLocally(label1, body.getText(), body.getType());
-
 					System.out.println("Upload text");
+					
 					try {
+						try {
+							//get LLM-generated feedback
+							String url = "http://16.171.64.118:8000/input/recommend";
+							HttpClient httpClient = HttpClient.newHttpClient();
+							HttpRequest httpRequest = HttpRequest.newBuilder()
+									.uri(UriBuilder.fromUri(url).build())
+									.header("Content-Type", "application/json")
+									.POST(HttpRequest.BodyPublishers.ofString(newText.toJSONString()))
+									.build();
+
+							// Send the request
+							HttpResponse<String> serviceResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+							int responseCode = serviceResponse.statusCode();
+							System.out.println("Response Code:" + responseCode);
+							System.out.println("Response Text" + serviceResponse.body())
+						} catch {
+							System.out.println("Error occured.");
+						}
 						// Store usertext with label
 						String wordspec = body.getWordSpec();
 						String fileName = createFileName(label1, body.getType());
@@ -350,7 +377,7 @@ public class TmitocarService extends RESTService {
 							System.out.println("Feedback: "+ feedbackFileId.toString());
 						}
 						if (graphFileId == null) {
-							System.out.println("Something went wrong storing the feedback for " + label1);
+							System.out.println("Something went wrong storing the graph for " + label1);
 							// err.put("errorMessage", "Something went wrong storing the graph for " + label1);
 							// err.put("error", true);
 							// TODO
