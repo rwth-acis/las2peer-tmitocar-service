@@ -1403,7 +1403,7 @@ public class TmitocarService extends RESTService {
 			ObjectId graphFileId = null;
 			if (userTexts.get(label1) != null) {
 				System.out.println("Storing PDF to mongodb...");
-				feedbackFileId = service.storeLocalFileRemote(body.getTopic()+"-feedback.pdf");
+				feedbackFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf");
 				graphFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json");
 
 			} else {
