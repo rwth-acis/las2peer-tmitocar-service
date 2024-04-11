@@ -493,7 +493,7 @@ public class TmitocarService extends RESTService {
 						} finally {
 							mongoClient.close();
 						}
-						System.out.println(newText);
+
 						System.out.println("Get llm-generated feedback and store as markdown.");
 						//get LLM-generated feedback
 						String url = "http://16.171.64.118:8000/input/recommend";
@@ -2096,11 +2096,9 @@ public class TmitocarService extends RESTService {
 		JSONObject actor = new JSONObject();
 		actor.put("objectType", "Agent");
 		JSONObject account = new JSONObject();
-		System.out.println("Homepage is: " + xapiHomepage);
 		account.put("name", user);
 		account.put("homePage", xapiHomepage);
 		actor.put("account", account);
-		System.out.println(account);
 		JSONObject verb = (JSONObject) p
 				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'" + xapiUrl + "/definitions/mwb/verb/" +verbId+"'}"));
 		JSONObject object = (JSONObject) p
