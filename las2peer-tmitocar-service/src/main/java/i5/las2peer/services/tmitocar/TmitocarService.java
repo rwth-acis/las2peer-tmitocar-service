@@ -1299,11 +1299,11 @@ public class TmitocarService extends RESTService {
 		 * @throws IOException    if there is an error reading the input stream
 		 */
 		@POST
-		@Path("/{label1}/compare/{label2}")
+		@Path("/{label1}/compareWithLLM/{label2}")
 		@Consumes(MediaType.MULTIPART_FORM_DATA)
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
-		@ApiOperation(value = "compareText", notes = "Compares two texts and generates a PDF report")
+		@ApiOperation(value = "compareTextWithLLM", notes = "Compares two texts and generates a PDF report")
 		public Response compareTextWithLLM(@PathParam("label1") String label1, @PathParam("label2") String label2,
 				@FormDataParam("file") InputStream textInputStream,
 				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type, @FormDataParam("template") String template,
@@ -1379,11 +1379,11 @@ public class TmitocarService extends RESTService {
 		}
 
 		@GET
-		@Path("/{label1}/compare/{label2}")
+		@Path("/{label1}/compareWithLLM/{label2}")
 		@Consumes(MediaType.MULTIPART_FORM_DATA)
 		@Produces(MediaType.APPLICATION_JSON)
 		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
-		@ApiOperation(value = "getComparedText", notes = "Returns compared text report (PDF)")
+		@ApiOperation(value = "getComparedTextWithLLM", notes = "Returns compared text report (PDF)")
 		public Response getComparedTextWithLLM(@PathParam("label1") String label1, @PathParam("label2") String label2)
 				throws ParseException, IOException {
 			if (!isActive.containsKey(label1)) {
