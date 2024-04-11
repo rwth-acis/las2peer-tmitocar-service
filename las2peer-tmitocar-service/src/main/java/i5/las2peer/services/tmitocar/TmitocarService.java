@@ -479,16 +479,15 @@ public class TmitocarService extends RESTService {
 						JSONParser parser = new JSONParser();
 						JSONObject responseBody = (JSONObject) parser.parse(serviceResponse.body());
 
-						String path = "tmitocar/"+ body.getTopic() +"-llm_feedback.md";
-
+						System.out.println("Write response to markdown.");
 						//store response as markdown
-						FileWriter writer = new FileWriter(path);
+						FileWriter writer = new FileWriter("tmitocar/"+ body.getTopic() +"-llm_feedback.md");
 						writer.write(responseBody.get("response").toString());
 						writer.close();
 
 						System.out.println("Convert markdown to pdf.");
 						// store markdown as pdf
-						ProcessBuilder pb = new ProcessBuilder("pandoc", path, "-o", body.getTopic()+"-llm_feedback.pdf");
+						ProcessBuilder pb = new ProcessBuilder("pandoc", body.getTopic()+"-llm_feedback.md" , "-o", body.getTopic()+"-llm_feedback.pdf");
 						pb.inheritIO();
 						pb.directory(new File("tmitocar"));
 						Process process2 = pb.start();
