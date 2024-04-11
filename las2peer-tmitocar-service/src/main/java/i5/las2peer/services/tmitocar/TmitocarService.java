@@ -461,7 +461,8 @@ public class TmitocarService extends RESTService {
 
 						ObjectId feedbackFileId = null;
 						ObjectId graphFileId = null;
-
+						Files.delete(Paths.get("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".pdf"));
+						
 						System.out.println("Get llm-generated feedback and store as markdown.");
 						//get LLM-generated feedback
 						String url = "http://16.171.64.118:8000/input/recommend";
@@ -481,20 +482,20 @@ public class TmitocarService extends RESTService {
 
 						System.out.println("Write response to markdown.");
 						//store response as markdown
-						FileWriter writer = new FileWriter("tmitocar/"+ body.getTopic() +"-llm_feedback.md");
+						FileWriter writer = new FileWriter("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md");
 						writer.write(responseBody.get("response").toString());
 						writer.close();
 
 						System.out.println("Convert markdown to pdf.");
 						// store markdown as pdf
-						ProcessBuilder pb = new ProcessBuilder("pandoc", body.getTopic()+"-llm_feedback.md" , "-o", body.getTopic()+"-llm_feedback.pdf");
+						ProcessBuilder pb = new ProcessBuilder("pandoc", "comparison_" + label1 + "_vs_" + label2 + ".md" , "-o", "comparison_" + label1 + "_vs_" + label2 + ".pdf");
 						pb.inheritIO();
 						pb.directory(new File("tmitocar"));
 						Process process2 = pb.start();
 						process2.waitFor();
 
 						System.out.println("Storing PDF to mongodb...");
-						feedbackFileId = storeLocalFileRemote(body.getTopic()+"-llm_feedback.pdf",body.getTopic()+"-feedback.pdf");
+						feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf" ,body.getTopic()+"-feedback.pdf");
 						graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
 
 						String uuid = getUuidByEmail(body.getUuid());
