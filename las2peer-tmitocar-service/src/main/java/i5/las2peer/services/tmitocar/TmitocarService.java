@@ -430,16 +430,21 @@ public class TmitocarService extends RESTService {
 		JSONObject error = new JSONObject();
 		JSONObject newText = new JSONObject();
 
+		CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
+		CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
+		MongoClientSettings settings = MongoClientSettings.builder()
+				.uuidRepresentation(UuidRepresentation.STANDARD)
+				.applyConnectionString(new ConnectionString(mongoUri))
+				.codecRegistry(codecRegistry)
+				.build();
+		// Create a new client and connect to the server
+		MongoClient mongoClient = MongoClients.create(settings);
+
 		try {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
 					String[] courseAndTask = label2.split("-");
-					newText.put("userId", label1);
-					newText.put("studentInput", body.getText());
-					newText.put("taskNr", courseAndTask[1]);
-					newText.put("timestamp", System.currentTimeMillis());
-					newText.put("keywords", "[Python, AWS]");
 
 					storeFileLocally(label1, body.getText(), body.getType());
 					System.out.println("Upload text");
@@ -454,14 +459,41 @@ public class TmitocarService extends RESTService {
 						// compare with expert text
 						createComparison(label1, label2);
 
-						System.out.println("Generate feedback.");
-						// generate feedback
-						generateFeedback(label1, label2, template, body.getTopic());
+						System.out.println("Store graph to MongoDB...");
+						ObjectId graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
 
-						ObjectId feedbackFileId = null;
-						ObjectId graphFileId = null;
-						Files.delete(Paths.get("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".pdf"));
-						
+						newText.put("userId", label1);
+						newText.put("studentInput", body.getText());
+						newText.put("taskNr", courseAndTask[1]);
+						newText.put("timestamp", System.currentTimeMillis());
+
+						try {
+							// get keywords from file 
+							MongoDatabase database = mongoClient.getDatabase(mongoDB);
+							GridFSBucket gridFSBucket = GridFSBuckets.create(database, "files");
+							gridFSBucket.find(Filters.empty());
+							BsonObjectId bId = new BsonObjectId(graphFileId);
+							GridFSFile file = gridFSBucket.find(Filters.eq(bId)).first();
+							if (file == null) {
+								System.out.println("File with ID "+graphFileId+" not found");
+							}
+							Response.ResponseBuilder response = Response.ok(file.getObjectId().toHexString());
+							response.header("Content-Disposition", "attachment; filename=\"" + file.getFilename() + "\"");
+							
+							// Download the file to a ByteArrayOutputStream
+							ByteArrayOutputStream baos = new ByteArrayOutputStream();
+							gridFSBucket.downloadToStream(file.getObjectId(), baos);
+							String jsonStr = baos.toString();
+							JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
+							JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
+							JSONArray begriffeDiffB = (JSONArray) jsonObject.get("BegriffeDiffB");
+							newText.put("keywords", begriffeDiffB);							
+						} catch (MongoException me) {
+							System.err.println(me);
+						} finally {
+							mongoClient.close();
+						}
+						System.out.println(newText);
 						System.out.println("Get llm-generated feedback and store as markdown.");
 						//get LLM-generated feedback
 						String url = "http://16.171.64.118:8000/input/recommend";
@@ -495,8 +527,7 @@ public class TmitocarService extends RESTService {
 						Files.delete(Paths.get("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md"));
 
 						System.out.println("Storing PDF to mongodb...");
-						feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf" ,body.getTopic()+"-feedback.pdf");
-						graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
+						ObjectId feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf" ,body.getTopic()+"-feedback.pdf");
 
 						String uuid = getUuidByEmail(body.getUuid());
 							if (uuid!=null){
