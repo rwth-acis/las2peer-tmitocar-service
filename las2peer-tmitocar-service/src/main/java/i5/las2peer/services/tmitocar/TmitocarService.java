@@ -440,7 +440,6 @@ public class TmitocarService extends RESTService {
 					newText.put("taskNr", courseAndTask[1]);
 					newText.put("timestamp", System.currentTimeMillis());
 					newText.put("keywords", "[Python, AWS]");
-					System.out.println(newText);
 
 					storeFileLocally(label1, body.getText(), body.getType());
 					System.out.println("Upload text");
@@ -493,6 +492,7 @@ public class TmitocarService extends RESTService {
 						pb.directory(new File("tmitocar"));
 						Process process2 = pb.start();
 						process2.waitFor();
+						Files.delete(Paths.get("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md"));
 
 						System.out.println("Storing PDF to mongodb...");
 						feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf" ,body.getTopic()+"-feedback.pdf");
