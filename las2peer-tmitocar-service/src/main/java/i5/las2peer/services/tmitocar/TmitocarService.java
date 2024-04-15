@@ -450,7 +450,7 @@ public class TmitocarService extends RESTService {
 					System.out.println("Upload text");
 					
 					try {
-						System.out.println("UserText is: ", userTexts);
+						System.out.println("Usertext is : " + userTexts);
 						// Store usertext with label
 						String wordspec = body.getWordSpec();
 						String fileName = createFileName(label1, body.getType());
