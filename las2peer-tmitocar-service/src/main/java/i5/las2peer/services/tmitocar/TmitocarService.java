@@ -464,9 +464,9 @@ public class TmitocarService extends RESTService {
 						ObjectId graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
 
 						newText.put("userId", label1);
-
-						if (userTexts!=null) {
-							newText.put("studentInput", readTxtFile("tmitocar/texts/"+ label1 + ".txt-cleaned.txt"));
+						
+						if (body.getType().toLowerCase().equals("application/pdf") || body.getType().toLowerCase().equals("pdf")) {
+							newText.put("studentInput", readTxtFile("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt"));
 						} else {
 							newText.put("studentInput", body.getText());
 						}
