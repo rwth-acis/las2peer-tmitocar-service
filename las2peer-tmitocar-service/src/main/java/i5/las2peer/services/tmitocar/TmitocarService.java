@@ -466,7 +466,7 @@ public class TmitocarService extends RESTService {
 						newText.put("userId", label1);
 
 						if (userTexts!=null) {
-							newText.put("studentInput", userTexts.get(label1));
+							newText.put("studentInput", readTxtFile(label1 + ".txt-cleaned.txt"));
 						} else {
 							newText.put("studentInput", body.getText());
 						}
