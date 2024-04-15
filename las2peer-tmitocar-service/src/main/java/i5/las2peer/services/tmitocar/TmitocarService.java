@@ -429,7 +429,8 @@ public class TmitocarService extends RESTService {
 		System.out.println("Block " + label1);
 		JSONObject error = new JSONObject();
 		JSONObject newText = new JSONObject();
-
+		String type = body.getType();
+		System.out.println("Filetype is: "+ type);
 		CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
 		CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
 		MongoClientSettings settings = MongoClientSettings.builder()
@@ -450,7 +451,6 @@ public class TmitocarService extends RESTService {
 					System.out.println("Upload text");
 					
 					try {
-						System.out.println("Usertext is : " + userTexts);
 						// Store usertext with label
 						String wordspec = body.getWordSpec();
 						String fileName = createFileName(label1, body.getType());
@@ -464,11 +464,12 @@ public class TmitocarService extends RESTService {
 						ObjectId graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
 
 						newText.put("userId", label1);
-						
-						if (body.getType().toLowerCase().equals("application/pdf") || body.getType().toLowerCase().equals("pdf")) {
+
+						if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
+							System.out.println("Get content from -cleaned.txt.");
 							newText.put("studentInput", readTxtFile("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt"));
 						} else {
-							newText.put("studentInput", body.getText());
+							newText.put("studentInput", userTexts.get(label1));
 						}
 						
 						newText.put("taskNr", courseAndTask[1]);
