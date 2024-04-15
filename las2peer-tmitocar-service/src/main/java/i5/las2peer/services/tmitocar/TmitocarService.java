@@ -450,6 +450,7 @@ public class TmitocarService extends RESTService {
 					System.out.println("Upload text");
 					
 					try {
+						System.out.println("UserText is: ", userTexts);
 						// Store usertext with label
 						String wordspec = body.getWordSpec();
 						String fileName = createFileName(label1, body.getType());
@@ -463,11 +464,17 @@ public class TmitocarService extends RESTService {
 						ObjectId graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
 
 						newText.put("userId", label1);
-						newText.put("studentInput", body.getText());
+
+						if (userTexts!=null) {
+							newText.put("studentInput", userTexts.get(label1));
+						} else {
+							newText.put("studentInput", body.getText());
+						}
+						
 						newText.put("taskNr", courseAndTask[1]);
 						newText.put("timestamp", System.currentTimeMillis());
 						System.out.println("New Text is:" + newText);
-						
+
 						try {
 							// get keywords from file 
 							MongoDatabase database = mongoClient.getDatabase(mongoDB);
