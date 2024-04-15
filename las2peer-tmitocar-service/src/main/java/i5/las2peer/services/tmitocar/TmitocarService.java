@@ -463,11 +463,13 @@ public class TmitocarService extends RESTService {
 						ObjectId graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
 
 						newText.put("userId", label1);
-						
+
 						File f = new File("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt");
+						File f_send = new File("tmitocar/texts/" + label1 + "/"+ label1 + "-" + courseAndTask[0] + ".txt-cleaned.txt");
 						if (f.exists()) {
 							System.out.println("Get content from -cleaned.txt.");
 							newText.put("studentInput", readTxtFile("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt"));
+							f.renameTo(f_send);
 						} else {
 							newText.put("studentInput", userTexts.get(label1));
 						}
