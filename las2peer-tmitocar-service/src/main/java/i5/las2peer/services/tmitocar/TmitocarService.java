@@ -466,7 +466,8 @@ public class TmitocarService extends RESTService {
 						newText.put("studentInput", body.getText());
 						newText.put("taskNr", courseAndTask[1]);
 						newText.put("timestamp", System.currentTimeMillis());
-
+						System.out.println("New Text is:" + newText);
+						
 						try {
 							// get keywords from file 
 							MongoDatabase database = mongoClient.getDatabase(mongoDB);
