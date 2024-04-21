@@ -465,7 +465,7 @@ public class TmitocarService extends RESTService {
 						newText.put("userId", label1);
 
 						File f = new File("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt");
-						File f_send = new File("tmitocar/texts/" + label1 + "/"+ label1 + "-" + courseAndTask[0] + ".txt-cleaned.txt");
+						File f_send = new File("tmitocar/texts/" + label1 + "/"+ label1 + "-" + courseAndTask[1] + ".txt-cleaned.txt");
 						if (f.exists()) {
 							System.out.println("Get content from -cleaned.txt.");
 							newText.put("studentInput", readTxtFile("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt"));
@@ -530,7 +530,7 @@ public class TmitocarService extends RESTService {
 
 						System.out.println("Convert markdown to pdf.");
 						// store markdown as pdf
-						ProcessBuilder pb = new ProcessBuilder("pandoc", "comparison_" + label1 + "_vs_" + label2 + ".md" , "-o", "comparison_" + label1 + "_vs_" + label2 + ".pdf");
+						ProcessBuilder pb = new ProcessBuilder("pandoc", "comparison_" + label1 + "_vs_" + label2 + ".md" , "-o", "comparison_" + label1 + "_vs_" + label2 + ".pdf","--wrap=preserve");
 						pb.inheritIO();
 						pb.directory(new File("tmitocar"));
 						Process process2 = pb.start();
