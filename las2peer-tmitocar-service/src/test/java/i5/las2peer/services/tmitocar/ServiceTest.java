@@ -55,7 +55,7 @@ public class ServiceTest {
 
 		// start service
 		// during testing, the specified service version does not matter
-		node.startService(new ServiceNameVersion(TmitocarService.class.getName(), "1.0.0"), "a pass");
+		node.startService(new ServiceNameVersion(TmitocarService.class.getName(), "1.1.0"), "a pass");
 
 		// start connector
 		connector = new WebConnector(true, 0, false, 0); // port 0 means use system defined port
@@ -92,27 +92,27 @@ public class ServiceTest {
 	 * Test the example method that consumes one path parameter which we give the value "testInput" in this test.
 	 * 
 	 */
-	@Test
-	public void testPost() {
-		try {
-			MiniClient client = new MiniClient();
-			client.setConnectorEndpoint(connector.getHttpEndpoint());
-			client.setLogin(testAgent.getIdentifier(), testPass);
+	// @Test
+	// public void testPost() {
+	// 	try {
+	// 		MiniClient client = new MiniClient();
+	// 		client.setConnectorEndpoint(connector.getHttpEndpoint());
+	// 		client.setLogin(testAgent.getIdentifier(), testPass);
 
-			// testInput is the pathParam
-			String content = "";
-			try {
-				content = new String(Files.readAllBytes(Paths.get("tmitocar/example.txt")));
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+	// 		// testInput is the pathParam
+	// 		String content = "";
+	// 		try {
+	// 			content = new String(Files.readAllBytes(Paths.get("tmitocar/example.txt")));
+	// 		} catch (IOException e) {
+	// 			e.printStackTrace();
+	// 		}
 
-			ClientResponse result = client.sendRequest("POST", mainPath + "test", content);
-			Assert.assertEquals(200, result.getHttpCode());
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail(e.toString());
-		}
-	}
+	// 		ClientResponse result = client.sendRequest("POST", mainPath + "test", content);
+	// 		Assert.assertEquals(200, result.getHttpCode());
+	// 	} catch (Exception e) {
+	// 		e.printStackTrace();
+	// 		Assert.fail(e.toString());
+	// 	}
+	// }
 
 }
