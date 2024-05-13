@@ -521,11 +521,15 @@ public class TmitocarService extends RESTService {
 						System.out.println("Response Text" + serviceResponse.body());
 						JSONParser parser = new JSONParser();
 						JSONObject responseBody = (JSONObject) parser.parse(serviceResponse.body());
+						
+						String r = responseBody.get("response").toString();
+						String pattern = "\n(?!\\n)";
+						String r_new = r.replaceAll(pattern, "\n\n");
 
 						System.out.println("Write response to markdown.");
 						//store response as markdown
 						FileWriter writer = new FileWriter("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md");
-						writer.write(responseBody.get("response").toString());
+						writer.write(r_new);
 						writer.close();
 
 						System.out.println("Convert markdown to pdf.");
