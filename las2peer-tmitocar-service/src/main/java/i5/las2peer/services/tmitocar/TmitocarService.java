@@ -422,6 +422,7 @@ public class TmitocarService extends RESTService {
 
 	public boolean llm_feedback(@PathParam("label1") String label1, @PathParam("label2") String label2,
 			@PathParam("template") String template, TmitocarText body, String callbackUrl, String sourceFileId) {
+		TmitocarService service = (TmitocarService) Context.get().getService();
 		isActive.put(label1, true);
 		JSONObject j = new JSONObject();
 		j.put("user", label1);
@@ -445,6 +446,35 @@ public class TmitocarService extends RESTService {
 				@Override
 				public void run() {
 					String[] courseAndTask = label2.split("-");
+					int basisId = 0;
+					int courseId = Integer.parseInt(courseAndTask[0]);
+					Connection conn = null;
+					PreparedStatement stmt = null;
+					ResultSet rs = null;
+
+					try {
+						conn = service.getConnection();
+						stmt = conn.prepareStatement("SELECT * FROM course WHERE id = ? ORDER BY id ASC");
+						stmt.setInt(1, courseId);
+						rs = stmt.executeQuery();
+						basisId = rs.getInt("basecourseid");
+					} catch (SQLException e) {
+						e.printStackTrace();
+					} finally {
+						try {
+							if (rs != null) {
+								rs.close();
+							}
+							if (stmt != null) {
+								stmt.close();
+							}
+							if (conn != null) {
+								conn.close();
+							}
+						} catch (SQLException ex) {
+							System.out.println(ex.getMessage());
+						}
+					}
 
 					storeFileLocally(label1, body.getText(), body.getType());
 					System.out.println("Upload text");
@@ -474,7 +504,7 @@ public class TmitocarService extends RESTService {
 							newText.put("studentInput", userTexts.get(label1));
 						}
 						
-						newText.put("taskNr", courseAndTask[1]);
+						newText.put("taskNr", basisId+"-"+courseAndTask[1]);
 						newText.put("timestamp", System.currentTimeMillis());
 						System.out.println("New Text is:" + newText);
 
