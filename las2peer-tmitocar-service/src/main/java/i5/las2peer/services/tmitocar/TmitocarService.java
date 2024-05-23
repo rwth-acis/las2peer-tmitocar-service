@@ -1,47 +1,71 @@
 package i5.las2peer.services.tmitocar;
 
-import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.math.BigInteger;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.logging.Level;
-import org.apache.commons.io.IOUtils;
-import javax.imageio.ImageIO;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriBuilder;
 
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.java_websocket.util.Base64;
+
+import com.google.gson.Gson;
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoException;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.gridfs.GridFSBucket;
+import com.mongodb.client.gridfs.GridFSBuckets;
+import com.mongodb.client.gridfs.model.GridFSFile;
+import com.mongodb.client.model.Filters;
 
 import i5.las2peer.api.Context;
 import i5.las2peer.api.ManualDeployment;
 import i5.las2peer.api.logging.MonitoringEvent;
+import i5.las2peer.connectors.webConnector.client.MiniClient;
 import i5.las2peer.logging.L2pLogger;
 import i5.las2peer.restMapper.RESTService;
 import i5.las2peer.restMapper.annotations.ServicePath;
+import i5.las2peer.services.tmitocar.pojo.LrsCredentials;
+import i5.las2peer.services.tmitocar.pojo.TmitocarResponse;
 import i5.las2peer.services.tmitocar.pojo.TmitocarText;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -55,12 +79,27 @@ import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
-import net.minidev.json.JSONValue;
-import org.apache.pdfbox.*;
-import org.apache.pdfbox.cos.COSDocument;
+import netscape.javascript.JSObject;
+
 import org.apache.pdfbox.pdfparser.PDFParser;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
+import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.bson.BsonDocument;
+import org.bson.BsonInt64;
+import org.bson.BsonObjectId;
+import org.bson.Document;
+import org.bson.UuidRepresentation;
+import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.codecs.pojo.PojoCodecProvider;
+import org.bson.conversions.Bson;
+import org.bson.types.ObjectId;
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.glassfish.jersey.media.multipart.FormDataParam;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
+
+import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
+import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
 /**
  * las2peer-tmitocar-Service
@@ -70,1313 +109,566 @@ import java.nio.charset.StandardCharsets;
  * 
  */
 @Api
-@SwaggerDefinition(info = @Info(title = "las2peer tmitocar Service", version = "1.0.0", description = "A las2peer tmitocar Service for evaluating texts.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+@SwaggerDefinition(info = @Info(title = "las2peer tmitocar Service", version = "1.0.0", description = "A las2peer tmitocar wrapper service for analyzing/evaluating texts.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
 @ManualDeployment
 @ServicePath("/tmitocar")
 public class TmitocarService extends RESTService {
 	private String publicKey;
 	private String privateKey;
 	private String lrsURL;
-	private static HashMap<String, Boolean> userError = null;
-	private static HashMap<String, String> userTexts = null;
+
 	private static HashMap<String, Boolean> isActive = null;
-	private static HashMap<String, String> expertLabel = null;
-	private static HashMap<String, String> jsonFile = null;
-	private static HashMap<String, String> userCompareText = null;
-	private static HashMap<String, String> userCompareType = null;
-	private static HashMap<String, String> userCompareName = null;
-	private static HashMap<String, String> userEmail = null;
-	private static HashMap<String, String> userFileName = null;
+	private static HashMap<String, String> userTexts = null;
 	private static final L2pLogger logger = L2pLogger.getInstance(TmitocarService.class.getName());
+
+	private String mongoHost;
+	private String mongoUser;
+	private String mongoPassword;
+	private String mongoDB;
+	private String mongoUri;
+	private String mongoAuth = "admin";
+
+	private String pgsqlHost;
+	private String pgsqlPort;
+	private String pgsqlUser;
+	private String pgsqlPassword;
+	private String pgsqlDB;
+
+	private static BasicDataSource dataSource;
+
+	private String xapiUrl;
+	private String xapiHomepage;
 
 	private final static String AUTH_FILE = "tmitocar/auth.json";
 
+
+	// This is the constructor of the TmitocarService class.
 	public TmitocarService() {
+		// Call the setFieldValues() method to initialize some fields.
 		setFieldValues();
 
+		// Call the initVariables() method to initialize some variables.
+		initVariables();
+
+		// Call the initAuth() method to initialize the authentication mechanism.
+		initAuth();
+
+		// Call the initDB() method to initialize the database connection.
+		initDB();
+
+		// Set the logging level to WARNING for the L2pLogger global console.
+		L2pLogger.setGlobalConsoleLevel(Level.WARNING);
+	}
+
+	@Override
+	protected void initResources() {
+		getResourceConfig().register(this);
+		getResourceConfig().register(Feedback.class);
+		getResourceConfig().register(TMitocarText.class);
+		getResourceConfig().register(WritingTask.class);
+		getResourceConfig().register(Analysis.class);
+		getResourceConfig().register(FAQ.class);
+		getResourceConfig().register(Credits.class);
+	}
+
+	private void initVariables() {
 		if (isActive == null) {
 			isActive = new HashMap<String, Boolean>();
-		}
-		if (expertLabel == null) {
-			expertLabel = new HashMap<String, String>();
 		}
 		if (userTexts == null) {
 			userTexts = new HashMap<String, String>();
 		}
+	}
 
-		if (userError == null) {
-			userError = new HashMap<String, Boolean>();
-		}
-		if (userCompareText == null) {
-			userCompareText = new HashMap<String, String>();
-		}
-		if (userCompareType == null) {
-			userCompareType = new HashMap<String, String>();
-		}
-		if (userCompareName == null) {
-			userCompareName = new HashMap<String, String>();
-		}
-
-		if (jsonFile == null) {
-			jsonFile = new HashMap<String, String>();
-		}
-
-		if (userEmail == null) {
-			userEmail = new HashMap<String, String>();
-		}
-
-		if (userFileName == null) {
-			userFileName = new HashMap<String, String>();
-		}
-
+	// This is a private method of the TmitocarService class used to initialize the
+	// authentication mechanism.
+	private void initAuth() {
+		// Create a new File object with the AUTH_FILE file path.
 		File f = new File(AUTH_FILE);
+
+		// Check if the file does not exist.
 		if (Files.notExists(f.toPath())) {
+			// If the file does not exist, create a new JSONObject to store the public and
+			// private keys.
 			JSONObject j = new JSONObject();
 			j.put("ukey", publicKey);
 			j.put("pkey", privateKey);
+
+			// Try to write the JSONObject to the file.
 			try {
+				// Create a new FileWriter object to write to the file.
 				FileWriter myWriter = new FileWriter(f);
+				// Write the JSON string to the file.
 				myWriter.write(j.toJSONString());
+				// Close the FileWriter object.
 				myWriter.close();
 			} catch (IOException e) {
+				// If an IOException occurs, print an error message and stack trace.
 				System.out.println("An error occurred: " + e.getMessage());
 				e.printStackTrace();
 			}
 		}
-		L2pLogger.setGlobalConsoleLevel(Level.WARNING);
+	}
+
+	private void initDB() {
+		// mongo db connection for exchanging files
+		mongoUri = "mongodb://" + mongoUser + ":" + mongoPassword + "@" + mongoHost + "/?authSource=" + mongoAuth;
+		// Construct a ServerApi instance using the ServerApi.builder() method
+		CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
+		CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
+		MongoClientSettings settings = MongoClientSettings.builder()
+				.uuidRepresentation(UuidRepresentation.STANDARD)
+				.applyConnectionString(new ConnectionString(mongoUri))
+				.codecRegistry(codecRegistry)
+				.build();
+
+		// Create a new client and connect to the server
+		MongoClient mongoClient = MongoClients.create(settings);
+		// Create a new client and connect to the server
+		try {
+			MongoDatabase database = mongoClient.getDatabase(mongoDB);
+			// Send a ping to confirm a successful connection
+			Bson command = new BsonDocument("ping", new BsonInt64(1));
+			Document commandResult = database.runCommand(command);
+			System.out.println("Pinged your deployment. You successfully connected to MongoDB!");
+		} catch (MongoException me) {
+			System.err.println(me);
+		} finally {
+			mongoClient.close();
+		}
+		// postgresql 
+		if (dataSource == null) {
+            dataSource = new BasicDataSource();
+            dataSource.setDriverClassName("org.postgresql.Driver");
+            dataSource.setUrl("jdbc:postgresql://"+pgsqlHost+":"+pgsqlPort+"/"+pgsqlDB);
+            dataSource.setUsername(pgsqlUser);
+            dataSource.setPassword(pgsqlPassword);
+
+            // Set connection pool properties
+            dataSource.setInitialSize(5);
+            dataSource.setMaxTotal(10);
+        }
+	}
+
+	protected Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
+    }
+
+	private void uploadToTmitocar(String label1, String fileName, String wordspec)
+			throws InterruptedException, IOException {
+		ProcessBuilder pb;
+		if (wordspec != null && wordspec.length() > 2) {
+			System.out.println("Using wordspec: " + wordspec);
+			pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
+					"texts/" + label1 + "/" + fileName,
+					"-l", label1, "-o", "json", "-S", "-w", wordspec);
+
+		} else {
+			pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
+					"texts/" + label1 + "/" + fileName,
+					"-l", label1, "-o", "json", "-S");
+		}
+
+		pb.inheritIO();
+		pb.directory(new File("tmitocar"));
+		Process p = pb.start();
+		p.waitFor();
+	}
+
+	private void createComparison(String label1, String label2) throws InterruptedException, IOException {
+		ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", label1, "-c",
+				label2, "-o", "json", "-T");
+		pb2.inheritIO();
+		pb2.directory(new File("tmitocar"));
+		Process process2 = pb2.start();
+		process2.waitFor();
+	}
+
+	private void generateFeedback(String label1, String label2, String template, String topic, String scriptFile)
+			throws InterruptedException, IOException {
+		ProcessBuilder pb = new ProcessBuilder("bash", scriptFile, "-s", "-o", "pdf", "-i",
+				"comparison_" + label1 + "_vs_" + label2 + ".json", "-t",
+				"templates/" + template, "-S", topic);
+		pb.inheritIO();
+		pb.directory(new File("tmitocar"));
+		Process p = pb.start();
+		p.waitFor();
+		cleanJSONFile("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".json");
+	}
+
+	private void generateFeedback(String label1, String label2, String template, String topic)
+			throws InterruptedException, IOException {
+		generateFeedback(label1, label2, template, topic, "feedback.sh");
 	}
 
 	/**
 	 * Analyze text
 	 * 
-	 * @param user Name of the current user.
-	 * @param body Text to be analyzed
+	 * @param label1 first label (source text)
+	 * @param label2 second label (remote text)
+	 * @param body   Text to be analyzed
 	 * @return Returns an HTTP response with png content derived from the underlying
 	 *         tmitocar service.
 	 */
-	@POST
-	@Path("/{user}")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces("text/html")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
-	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response analyzeText(@PathParam("user") String user, TmitocarText body) {
-		isActive.put(user, true);
+	public boolean compareText(@PathParam("label1") String label1, @PathParam("label2") String label2,
+			@PathParam("template") String template, TmitocarText body, String callbackUrl, String sourceFileId) {
+		isActive.put(label1, true);
 		JSONObject j = new JSONObject();
-		j.put("user", user);
-		j.put("text", body.getText().length());
-		String wordspec = body.getWordSpec();
-		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_81, j.toJSONString());
-		// TODO Handle pdfs
-		try {
-			new Thread(new Runnable() {
-				@Override
-				public void run() {
-					File f = new File("tmitocar/texts/" + user + "/text.txt");
-					try {
-						boolean b = f.getParentFile().mkdirs();
-						b = f.createNewFile();
-						FileWriter writer = new FileWriter(f);
-						writer.write(StringEscapeUtils.unescapeJson(body.getText()).toLowerCase());
-						writer.close();
-					} catch (IOException e) {
-						System.out.println("An error occurred: " + e.getMessage());
-						e.printStackTrace();
-						isActive.put(user, false);
-					}
-					try {
-						ProcessBuilder pb;
-						if (wordspec != null && wordspec.length() > 2) {
-							System.out.println("Using wordspec: " + wordspec);
-							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/text.txt",
-									"-w", wordspec);
-						} else {
-							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/text.txt");
-						}
-						pb.inheritIO();
-						pb.directory(new File("tmitocar"));
-						Process process = pb.start();
-						try {
-							process.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-						// convert image pngquant --force --quality=40-100 --strip --skip-if-larger
-						// example-modell.png
-						ProcessBuilder pb2 = new ProcessBuilder("pngquant", "--force", "--quality=40-65", "--strip",
-								"--skip-if-larger", "texts/" + user + "/text-modell.png");
-						pb2.inheritIO();
-						pb2.directory(new File("tmitocar"));
-						Process process2 = pb2.start();
-						try {
-							process2.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-
-						isActive.put(user, false);
-					} catch (IOException e) {
-						e.printStackTrace();
-
-						isActive.put(user, false);
-
-					}
-				}
-			}).start();
-			return Response.ok().entity("").build();
-		} catch (Exception e) {
-			e.printStackTrace();
-			isActive.put(user, false);
-			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
-		}
-
-	}
-
-	/**
-	 * Analyze text
-	 * 
-	 * @param user Name of the current user.
-	 * @return Returns an HTTP response with png content derived from the underlying
-	 *         tmitocar service.
-	 */
-	@GET
-	@Path("/{user}")
-	@Produces("image/png")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
-	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response getImage(@PathParam("user") String user) {
-		// TODO Handle pdfs
-		try {
-			System.out.println(isActive.get(user));
-			BufferedImage image = ImageIO.read(new File("tmitocar/texts/" + user + "/text-modell-fs8.png"));
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			ImageIO.write(image, "png", baos);
-			byte[] imageData = baos.toByteArray();
-
-			JSONObject j = new JSONObject();
-			j.put("user", user);
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_82, j.toJSONString());
-			return Response.ok().entity(imageData).build();
-		} catch (IOException e) {
-			e.printStackTrace();
-			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
-		}
-
-	}
-
-	/**
-	 * Analyze text
-	 * 
-	 * @param user Name of the current user.
-	 * @return Returns an HTTP response with png content derived from the underlying
-	 *         tmitocar service.
-	 */
-	@GET
-	@Path("/{user}/compare/{expert}")
-	@Produces("application/pdf")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
-	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response getPDF(@PathParam("user") String user, @PathParam("expert") String expert) {
-		// TODO Handle pdfs
-		try {
-			System.out.println(isActive.get(user));
-			File pdf = new File("tmitocar/comparison_" + expert + "_vs_" + user + expert + ".pdf");
-			byte[] fileContent = Files.readAllBytes(pdf.toPath());
-			JSONObject j = new JSONObject();
-			j.put("user", user);
-			Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_84, j.toJSONString());
-			System.out.println(fileContent);
-			return Response.ok().entity(fileContent).build();
-		} catch (IOException e) {
-			e.printStackTrace();
-			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
-		}
-
-	}
-
-	/**
-	 * Analyze text
-	 * 
-	 * @param user Name of the current user.
-	 * @return Returns an HTTP response with png content derived from the underlying
-	 *         tmitocar service.
-	 */
-	@GET
-	@Path("/{user}/status")
-	@Produces("text/html")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
-	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response getTmitocarStatus(@PathParam("user") String user) {
-		System.out.println(user);
-		System.out.println(isActive.get(user));
-		return Response.ok(isActive.get(user).toString()).build();
-	}
-
-	/**
-	 * Analyze text that was send from bot, updated version to be matchable in bot
-	 * action
-	 * 
-	 * @param body Body from request
-	 * @return Returns an HTTP response with png content derived from the underlying
-	 *         tmitocar service.
-	 */
-	@POST
-	@Path("/getFeedback")
-	@Consumes(MediaType.TEXT_PLAIN)
-	@Produces(MediaType.APPLICATION_JSON)
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
-	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response getFeedback(String body) throws ParseException {
-		System.out.println(body);
-		JSONObject jsonBody = new JSONObject();
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		jsonBody = (JSONObject) p.parse(body);
-		boolean isActive = true;
-		String channel = jsonBody.get("channel").toString();
-		while (isActive) {
-			isActive = this.isActive.get(channel);
-			// isActive = Boolean.parseBoolean(result.getResponse());
-			System.out.println(isActive);
-			try {
-				Thread.sleep(1000);
-			} catch (Exception e) {
-				jsonBody.put("text", "Exception ist passiert " + e.toString());
-				e.printStackTrace();
-			}
-		}
-		byte[] pdfByte = getPDF(channel, expertLabel.get(channel))
-				.getEntity().toString().getBytes();
-		String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
-		jsonBody = new JSONObject();
-		// jsonBody.put("text", "Hier deine Datei :D");
-		jsonBody.put("fileBody", fileBody);
-		jsonBody.put("fileType", "pdf");
-
-		return Response.ok().entity(jsonBody).build();
-
-	}
-
-	/**
-	 * Analyze text
-	 * 
-	 * @param user Name of the current user.
-	 * @param body Text to be analyzed
-	 * @return Returns an HTTP response with png content derived from the underlying
-	 *         tmitocar service.
-	 */
-	@POST
-	@Path("/{user}/{expert}/{template}")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces("text/html")
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
-	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response compareText(@PathParam("user") String user, @PathParam("expert") String expert,
-			@PathParam("template") String template, TmitocarText body) {
-		// TODO Handle pdfs
-		isActive.put(user, true);
-		expertLabel.put(user, expert);
-		JSONObject j = new JSONObject();
-		j.put("user", user);
+		j.put("user", label1);
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
-		System.out.println("Block user");
+		System.out.println("Block " + label1);
+		JSONObject error = new JSONObject();
 
-		// TODO Handle pdfs
 		try {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-					String textContent = "";
-					// problem here with the file name no? I mean if two threads do this, we will
-					// have one file overwriting the other?
-					String fileName = "text.txt";
-					System.out.println("Write File");
-					String type = body.getType();
-					String wordspec = body.getWordSpec();
 
-					if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
-						fileName = "text.txt";
-					} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
-						fileName = "text.pdf";
-					}
-					File f = new File("tmitocar/texts/" + user + "/" + fileName);
-					try {
-						boolean b = f.getParentFile().mkdirs();
-						b = f.createNewFile();
-
-						if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
-							/*
-							 * FileWriter writer = new FileWriter(f);
-							 * writer.write(body.getText().toLowerCase()); writer.close();
-							 */
-							byte[] decodedBytes = Base64.decode(body.getText());
-							System.out.println(decodedBytes);
-							FileUtils.writeByteArrayToFile(f, decodedBytes);
-							textContent = readTxtFile("tmitocar/texts/" + user + "/" + fileName);
-						} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
-							byte[] decodedBytes = Base64.decode(body.getText());
-							System.out.println(decodedBytes);
-							FileUtils.writeByteArrayToFile(f, decodedBytes);
-							textContent = readPDFFile("tmitocar/texts/" + user + "/" + fileName);
-						} else {
-							userError.put(user, false);
-							System.out.println("wrong type");
-							throw new IOException();
-						}
-						// spaces are not counted
-						if (textContent.replaceAll("\\s", "").length() < 350) {
-							userError.put(user, false);
-							System.out.println("not enough words");
-							throw new IOException();
-						}
-						userTexts.put(user, textContent);
-
-					} catch (IOException e) {
-						System.out.println("An error occurred: " + e.getMessage());
-						e.printStackTrace();
-
-						isActive.put(user, false);
-						Thread.currentThread().interrupt();
-					}
-
+					storeFileLocally(label1, body.getText(), body.getType());
 					System.out.println("Upload text");
+					
 					try {
-						// Store usertext cwith label
-						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o
-						// json -s -S
-						ProcessBuilder pb;
-						if (wordspec != null && wordspec.length() > 2) {
-							System.out.println("Using wordspec: " + wordspec);
-							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
-									"-l", user + expert, "-o", "json", "-S", "-w", wordspec);
+						// Store usertext with label
+						String wordspec = body.getWordSpec();
+						String fileName = createFileName(label1, body.getType());
+						uploadToTmitocar(label1, fileName, wordspec);
 
-						} else {
-							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
-									"-l", user + expert, "-o", "json", "-S");
-						}
-
-						pb.inheritIO();
-						pb.directory(new File("tmitocar"));
-						Process process = pb.start();
-						try {
-							process.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							isActive.put(user, false);
-							userError.put(user, false);
-							Thread.currentThread().interrupt();
-						}
-
-						ProcessBuilder pbLocalJson;
-						System.out.println("create single model");
-						if (wordspec != null && wordspec.length() > 2) {
-							System.out.println("Using wordspec: " + wordspec);
-							pbLocalJson = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-									"texts/" + user + "/" + fileName,
-									"-l", user + expert + "json", "-o", "json", "-w", wordspec);
-
-						} else {
-							pbLocalJson = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-									"texts/" + user + "/" + fileName,
-									"-l", user + expert + "json", "-o", "json");
-						}
-
-						pbLocalJson.inheritIO();
-						pbLocalJson.directory(new File("tmitocar"));
-						Process processJson = pbLocalJson.start();
-						try {
-							processJson.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							isActive.put(user, false);
-							userError.put(user, false);
-							Thread.currentThread().interrupt();
-						}
-
-						System.out.println("compare with expert");
+						System.out.println("Compare with expert.");
 						// compare with expert text
-						// bash tmitocar.sh -l usertext -c expert1 -T -s -o json
-						ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", expert, "-c",
-								user + expert, "-o", "json", "-T");
-						pb2.inheritIO();
-						pb2.directory(new File("tmitocar"));
-						Process process2 = pb2.start();
-						try {
-							process2.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
+						createComparison(label1, label2);
 
-							userError.put(user, false);
-							isActive.put(user, false);
-							Thread.currentThread().interrupt();
-						}
-
-						System.out.println("gen feedback");
-
+						System.out.println("Generate feedback.");
 						// generate feedback
-						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
-						ProcessBuilder pb3 = new ProcessBuilder("bash", "feedback.sh", "-s", "-o", "pdf", "-i",
-								"comparison_" + expert + "_vs_" + user + expert + ".json", "-t",
-								"templates/" + template, "-S", body.getTopic());
-						pb3.inheritIO();
-						pb3.directory(new File("tmitocar"));
-						Process process3 = pb3.start();
-						try {
-							process3.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							isActive.put(user, false);
-						}
+						generateFeedback(label1, label2, template, body.getTopic());
 
-						// TODO
-						isActive.put(user, false);
-					} catch (IOException e) {
-						e.printStackTrace();
-						// userError.put(user, false);
-						isActive.put(user, false);
-					}
-				}
-			}).start();
-			return Response.ok().entity("").build();
-		} catch (Exception e) {
-			e.printStackTrace();
-			isActive.put(user, false);
-			expertLabel.remove(user);
-			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
-		}
-	}
-
-	/**
-	 * Analyze text that was send from bot, updated version to be matchable in bot
-	 * action
-	 * 
-	 * @param body Text to be analyzed
-	 * @return Returns an HTTP response with png content derived from the underlying
-	 *         tmitocar service.
-	 */
-	@POST
-	@Path("/analyzeText")
-	@Consumes(MediaType.TEXT_PLAIN)
-	@Produces(MediaType.APPLICATION_JSON)
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
-	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response compareTextFromBot(String body) throws ParseException, IOException {
-		System.out.println(body);
-		JSONObject jsonBody = new JSONObject();
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		jsonBody = (JSONObject) p.parse(body);
-		String channel = jsonBody.get("channel").toString();
-		int taskNumber = Integer.parseInt(jsonBody.get("fileName").toString().replaceAll("[^0-9]", ""));
-		String expertLabel = "t" + String.valueOf(taskNumber);
-
-		String topic = jsonBody.getAsString("topic");
-		String template = jsonBody.getAsString("template");
-
-		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic(expertLabel);
-		tmitoBody.setType(jsonBody.get("fileType").toString());
-		tmitoBody.setWordSpec("1200");
-		tmitoBody.setText(jsonBody.get("fileBody").toString());
-		compareText(channel, expertLabel, template, tmitoBody); // "template_ul_Q1_2021C.md"
-		boolean isActive = true;
-		while (isActive) {
-			isActive = this.isActive.get(channel);
-			// isActive = Boolean.parseBoolean(result.getResponse());
-			System.out.println(isActive);
-			try {
-				Thread.sleep(1000);
-			} catch (Exception e) {
-				jsonBody.put("text", "Exception ist passiert " + e.toString());
-				e.printStackTrace();
-			}
-		}
-		System.out.println("try creating xapi statement");
-		if (userError.get(channel) == null) {
-			if (userTexts.get(channel).length() < 20) {
-				userError.put(channel, false);
-			} else {
-				try {
-					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
-					System.out.println("try creating xapi statement");
-					JSONObject xAPI = createXAPIStatement(jsonBody.get("email").toString(),
-							jsonBody.get("fileName").toString(), expertLabel.replace("t", ""),
-							userTexts.get(channel), channel);
-					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
+						ObjectId feedbackFileId = null;
+						ObjectId graphFileId = null;
 						
-						sendXAPIStatement(xAPI, lrsAuthToken);
-						System.out.println("xAPI statement created");
-					}
-					JSONObject xAPImobsos = new JSONObject();
-					xAPImobsos.put("statement", xAPI);
-					xAPImobsos.put("token", lrsAuthToken);
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_3, xAPImobsos.toString());
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_33, xAPImobsos.toString());
-				} catch (ParseException e) {
-					e.printStackTrace();
-					System.out.println("could not create API statement" + e);
-				}
-			}
-		}
+						System.out.println("Storing PDF to mongodb...");
+						feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf",body.getTopic()+"-feedback.pdf");
+						graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
 
-		JSONObject response = new JSONObject();
-		if (userTexts.get(jsonBody.get("channel")) != null) {
-			System.out.println("converging pdf to base64");
-			try {
-				byte[] pdfByte = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
-						+ channel + expertLabel + ".pdf"));
-				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
-				response.put("fileBody", fileBody);
-				response.put("fileType", "pdf");
-				response.put("fileName", "Feedback");
-				userTexts.remove(channel);
-				jsonFile.put(channel, "tmitocar/texts/" + channel + "/text-modell.json");
-				userEmail.put(channel, jsonBody.get("email").toString());
-				userFileName.put(channel, jsonBody.get("fileName").toString());
-				System.out.println("finished conversion from pdf to base64");
-
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.println("failed conversion from pdf to base64");
-			}
-		}
-		String errorMessage = "";
-		if ((userError.get(channel) != null && !userError.get(channel))
-				|| response.get("fileBody") == null) {
-			if (jsonBody.get("submissionFailed") != null) {
-				errorMessage = replaceUmlaute(jsonBody.get("submissionFailed").toString());
-			} else {
-				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
-			}
-			System.out.println("Removing User from Errorlist1");
-			userError.remove(channel);
-		} else {
-			if (jsonBody.get("submissionSucceeded") != null) {
-				errorMessage = replaceUmlaute(jsonBody.get("submissionSucceeded").toString());
-			}
-			System.out.println("Removing User from Errorlist2" + errorMessage);
-			if (userError.get(channel) != null) {
-				userError.remove(channel);
-			}
-		}
-		System.out.println("response is " + response);
-		response.put("text", errorMessage);
-		return Response.ok().entity(response).build();
-	}
-
-	/**
-	 * After analysing text, send json graph?
-	 * 
-	 * @param body Text to be analyzed
-	 * @return Returns an HTTP response with png content derived from the underlying
-	 *         tmitocar service.
-	 */
-	@POST
-	@Path("/sendJson")
-	@Consumes(MediaType.TEXT_PLAIN)
-	@Produces(MediaType.APPLICATION_JSON)
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
-	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response sendJson(String body) throws ParseException, IOException {
-		System.out.println(body);
-		JSONObject jsonBody = new JSONObject();
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		jsonBody = (JSONObject) p.parse(body);
-		String channel = jsonBody.get("channel").toString();
-
-		JSONObject response = new JSONObject();
-		if (jsonFile.containsKey(channel)) {
-			try {
-				byte[] pdfByte = Files.readAllBytes(Paths.get(jsonFile.get(channel)));
-				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
-				response.put("fileBody", fileBody);
-				// response.put("fileType", "json");
-				response.put("fileType", "json");
-				response.put("fileName", userFileName.get(channel).replace(".txt", "").replace(".pdf", "") + "-graph");
-				if (jsonBody.get("submissionSucceeded") != null
-						&& !jsonBody.get("submissionSucceeded").toString().equals("")) {
-					response.put("text", jsonBody.get("submissionSucceeded").toString());
-				}
-
-				jsonFile.remove(channel);
-				System.out.println("finished conversion json from pdf to base64");
-				return Response.ok().entity(response).build();
-
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.println("failed conversion from pdf to base64");
-			}
-		} else {
-			response.put("text", jsonBody.get("submissionFailed").toString());
-			return Response.ok().entity(response).build();
-		}
-		String errorMessage = "";
-		System.out.println("response is " + response);
-		response.put("text", errorMessage);
-		return Response.ok().entity(response).build();
-	}
-
-	/**
-	 * Analyze text that was send from bot, updated version to be matchable in bot
-	 * action
-	 * 
-	 * @param body Text to be analyzed
-	 * @return Returns an HTTP response with png content derived from the underlying
-	 *         tmitocar service.
-	 */
-	@POST
-	@Path("/analyzeTextTUDresden")
-	@Consumes(MediaType.TEXT_PLAIN)
-	@Produces(MediaType.APPLICATION_JSON)
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
-	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response compareTextFromBotDresden(String body) throws ParseException, IOException {
-		System.out.println(body);
-		JSONObject jsonBody = new JSONObject();
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		jsonBody = (JSONObject) p.parse(body);
-		String errorMessage = "";
-		String expertLabel = jsonBody.getAsString("expertLabel"); //"Mustertext_WS";
-		String channel = jsonBody.get("channel").toString();
-		try {
-			errorMessage = jsonBody.get("submissionFailed").toString();
-		} catch (NullPointerException e) {
-			errorMessage = "Fehler";
-		}
-
-		System.out.println(jsonBody.get("fileName").toString());
-
-		
-		String topic = jsonBody.getAsString("topic");
-		String template = jsonBody.getAsString("template");
-
-		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic(topic);
-		tmitoBody.setType(jsonBody.get("fileType").toString());
-		tmitoBody.setWordSpec("1200");
-		tmitoBody.setText(jsonBody.get("fileBody").toString());
-		compareText(channel, expertLabel, template, tmitoBody); // "template_ddmz_withoutCompareGraphs.md"
-		boolean isActive = true;
-		while (isActive) {
-			isActive = this.isActive.get(channel);
-			// isActive = Boolean.parseBoolean(result.getResponse());
-			System.out.println(isActive);
-			try {
-				Thread.sleep(1000);
-			} catch (Exception e) {
-				jsonBody.put("text", "Exception ist passiert " + e.toString());
-				e.printStackTrace();
-			}
-		}
-		System.out.println("try creating xapi statement");
-		if (userError.get(channel) == null) {
-			if (userTexts.get(channel).length() < 20) {
-				userError.put(channel, false);
-			} else {
-				try {
-					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
-					System.out.println("try creating xapi statement");
-					byte[] pdfByteAPI = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
-							+ channel + expertLabel + ".pdf"));
-					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
-					JSONObject xAPI = createXAPIStatement2(jsonBody.get("email").toString(),
-							jsonBody.get("fileName").toString(), userTexts.get(channel),
-							fileBodyAPI, "compareToSample");
-					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
-						sendXAPIStatement(xAPI, lrsAuthToken);
-						System.out.println("xAPI statement created");
-					}
-					JSONObject xAPImobsos = new JSONObject();
-					xAPImobsos.put("statement", xAPI);
-					xAPImobsos.put("token", lrsAuthToken);
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_4, xAPImobsos.toString());
-				} catch (ParseException e) {
-					e.printStackTrace();
-					System.out.println("could not create API statement");
-				}
-			}
-		}
-
-		JSONObject response = new JSONObject();
-		if (userTexts.get(jsonBody.get("channel").toString()) != null) {
-			System.out.println("converging pdf to base64");
-			try {
-				byte[] pdfByte = Files.readAllBytes(Paths.get("tmitocar/comparison_" + expertLabel + "_vs_"
-						+ jsonBody.get("channel").toString() + expertLabel + ".pdf"));
-				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
-				response.put("fileBody", fileBody);
-				response.put("fileType", "pdf");
-				response.put("fileName", "Feedback");
-				userTexts.remove(channel);
-				System.out.println("finished conversion from pdf to base64");
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.println("failed conversion from pdf to base64");
-			}
-		}
-		errorMessage = "";
-		if ((userError.get(channel) != null && !userError.get(channel))
-				|| response.get("fileBody").toString() == null) {
-			if (jsonBody.get("submissionFailed") != null) {
-				errorMessage = replaceUmlaute(jsonBody.get("submissionFailed").toString());
-			} else {
-				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
-			}
-			System.out.println("Removing User from Errorlist1");
-			userError.remove(channel);
-		} else {
-			if (jsonBody.get("submissionSucceeded") != null)
-				errorMessage = replaceUmlaute(jsonBody.get("submissionSucceeded").toString());
-			System.out.println("Removing User from Errorlist2");
-			if (userError.get(channel) != null) {
-				userError.remove(channel);
-			}
-		}
-		System.out.println("response is " + response);
-		response.put("text", errorMessage);
-		return Response.ok().entity(response).build();
-	}
-
-	@POST
-	@Path("/getCredits")
-	@Consumes(MediaType.TEXT_PLAIN)
-	@Produces(MediaType.APPLICATION_JSON)
-	@ApiOperation(value = "REPLACE THIS WITH AN APPROPRIATE FUNCTION NAME", notes = "REPLACE THIS WITH YOUR NOTES TO THE FUNCTION")
-	@ApiResponses(value = {
-			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "REPLACE THIS WITH YOUR OK MESSAGE") })
-	public Response getCredits(String body) throws ParseException, IOException {
-		System.out.println(body);
-		JSONObject jsonBody = new JSONObject();
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		jsonBody = (JSONObject) p.parse(body);
-		String user = jsonBody.get("email").toString();
-		String hashUser = encryptThisString(user);
-		// Copy pasted from LL service
-		// Fetch ALL statements
-		JSONObject acc = (JSONObject) p.parse(new String("{'account': { 'name': '" + hashUser
-				+ "', 'homePage': 'https://chat.tech4comp.dbis.rwth-aachen.de'}}"));
-		URL url = new URL(lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
-
-		String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
-
-		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-		conn.setRequestMethod("GET");
-		conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-		conn.setRequestProperty("X-Experience-API-Version", "1.0.3");
-		conn.setRequestProperty("Authorization", "Basic " + lrsAuthToken);
-		conn.setRequestProperty("Cache-Control", "no-cache");
-		conn.setUseCaches(false);
-		BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-		String inputLine;
-		StringBuffer response = new StringBuffer();
-		while ((inputLine = in.readLine()) != null) {
-			response.append(inputLine);
-		}
-		in.close();
-		conn.disconnect();
-		System.out.println("10");
-		jsonBody = (JSONObject) p.parse(response.toString());
-
-		JSONArray statements = (JSONArray) jsonBody.get("statements");
-		System.out.println("11");
-		// Check statements with matching actor
-		// 12 Values as 12 assignments right?
-		int[] assignments = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-		for (Object index : statements) {
-			System.out.println("12");
-			JSONObject jsonIndex = (JSONObject) index;
-			JSONObject actor = (JSONObject) jsonIndex.get("actor");
-			JSONObject account = (JSONObject) actor.get("account");
-			if (account.get("name").toString().equals(user)
-					|| account.get("name").toString().equals(encryptThisString(user))) {
-				// JSONObject object = (JSONObject) jsonIndex.get("object");
-				JSONObject context = (JSONObject) jsonIndex.get("context");
-				// JSONObject definition = (JSONObject) object.get("definition");
-				JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
-				System.out.println("13");
-				System.out.println("14");
-				// check if its not a delete statement
-				if (extensions.get("https://tech4comp.de/xapi/context/extensions/filecontent") != null) {
-					JSONObject fileDetails = (JSONObject) extensions
-							.get("https://tech4comp.de/xapi/context/extensions/filecontent");
-					if (fileDetails.get("assignmentNumber") != null) {
-						String assignmentName = fileDetails.get("assignmentNumber").toString();
-						// JSONObject name = (JSONObject) definition.get("name");
-						// String assignmentName = name.getAsString("en-US");
-						try {
-							// int assignmentNumber = Integer.valueOf(assignmentName.split("t")[1]);
-							int assignmentNumber = Integer.valueOf(assignmentName);
-							assignments[assignmentNumber - 1]++;
-						} catch (Exception e) {
-							e.printStackTrace();
+						if (feedbackFileId == null) {
+							System.out.println("Something went wrong storing the feedback for " + label1);
+							// err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+							// err.put("error", true);
+							// TODO
+						}else{
+							System.out.println("Feedback: "+ feedbackFileId.toString());
 						}
-						// System.out.println("Extracted actor is " + name.getAsString("en-US"));
+						if (graphFileId == null) {
+							System.out.println("Something went wrong storing the graph for " + label1);
+							// err.put("errorMessage", "Something went wrong storing the graph for " + label1);
+							// err.put("error", true);
+							// TODO
+						}else{
+							System.out.println("Graph: "+ graphFileId.toString());
+						}
+						// LRS Store feedback
+						String[] courseAndTask = label2.split("-");
+
+						String uuid = getUuidByEmail(body.getUuid());
+							if (uuid!=null){
+								// user has accepted
+							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
+							if(lrsCredentials!=null){
+								JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
+								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
+								String encodedString = Base64.encodeBytes(toEncode.getBytes());
+								sendXAPIStatement(xapi, encodedString);
+							}
+						}
+
+						JSONObject steve = new JSONObject();
+						// example, should be replaced with actual stuff
+						steve.put("graphFileId", graphFileId.toString());
+						steve.put("feedbackFileId", feedbackFileId.toString());
+						callBack(callbackUrl, label1, label1, label2, steve);
+
+						isActive.put(label1, false);
+					} catch (IOException e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					} catch (ParseException e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					}
+					catch (Exception e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
 					}
 				}
-			}
+			}).start();
+			return true;
+		} catch (Exception e) {
+			e.printStackTrace();
+			isActive.put(label1, false);
+			error.put("error", e.toString());
+			callBack(callbackUrl, label1, label1, label2, error);
+			return false;
 		}
-		String msg = "";
-		int credits = 0;
-		for (int i = 0; i < 12; i++) {
-			String number;
-			if (i < 9) {
-				System.out.println("16");
-				number = "0" + String.valueOf(i + 1);
-				System.out.println("17");
-			} else {
-				System.out.println("18");
-				number = String.valueOf(i + 1);
-				System.out.println("19");
-			}
-			if (assignments[i] > 0) {
-				credits++;
-			}
-			System.out.println("20");
-			msg += "Schreibaufgabe " + number + ": " + String.valueOf(assignments[i]) + "\n";
-		}
-		System.out.println("21");
-		// How are the credits calculated?
-		msg += "Das hei\u00DFt, du hast bisher *" + credits * 2 + "* Leistunsprozente gesammelt. ";
-		System.out.println("22");
-		System.out.println(msg);
-		jsonBody = new JSONObject();
-		jsonBody.put("text", msg);
-		return Response.ok().entity(jsonBody).build();
 	}
 
-	@POST
-	@Path("/compareUserTexts")
-	@Consumes(MediaType.TEXT_PLAIN)
-	@Produces(MediaType.APPLICATION_JSON)
-	@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "Text analyzed") })
-	@ApiOperation(value = "Analyze Text", notes = "Sends Text to the tmitocar service and generates a visualization.")
-	public Response compareUserTexts(String body) throws ParseException, IOException {
-		System.out.println(body);
-		JSONObject jsonBody = new JSONObject();
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		jsonBody = (JSONObject) p.parse(body);
-		String errorMessage = "";
-		String channel = jsonBody.get("channel").toString();
-		try {
-			errorMessage = jsonBody.get("submissionFailed").toString();
-		} catch (NullPointerException e) {
-			errorMessage = "Fehler";
-		}
-
-		System.out.println(jsonBody.get("fileName").toString());
-		// check if name has correct form
-		if (userCompareText.get(channel) == null) {
-			jsonBody = new JSONObject();
-			jsonBody.put("text", errorMessage);
-			return Response.ok().entity(jsonBody).build();
-		}
-
-		String topic = jsonBody.getAsString("topic");
-		String template = jsonBody.getAsString("template");
-		String expertLabel = jsonBody.getAsString("expertLabel");
-
-		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic(topic);
-		tmitoBody.setType(jsonBody.get("fileType").toString());
-		tmitoBody.setWordSpec("1200");
-		tmitoBody.setText(jsonBody.get("fileBody").toString());
-		compareUserTexts(channel, expertLabel, template, tmitoBody); // "template_ddmz_twoTexts_withoutCompareGraphs.md"
-		boolean isActive = true;
-		while (isActive) {
-			isActive = this.isActive.get(channel);
-			// isActive = Boolean.parseBoolean(result.getResponse());
-			System.out.println(isActive);
-			try {
-				Thread.sleep(1000);
-			} catch (Exception e) {
-				jsonBody.put("text", "Exception ist passiert " + e.toString());
-				e.printStackTrace();
-			}
-		}
-		System.out.println("try creating xapi statement");
-
-		if (userError.get(channel) == null) {
-			if (userTexts.get(channel).length() < 20) {
-				userError.put(channel, false);
-			} else {
-				try {
-					System.out.println("try creating xapi statement");
-					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
-					String type = "";
-					if (userCompareType.get(channel).toLowerCase().contains("pdf")) {
-						type = "pdf";
-					} else {
-						type = "txt";
-					}
-					System.out.println(type);
-					byte[] pdfByteAPI = Files.readAllBytes(
-							Paths.get("tmitocar/comparison_" + channel + "VergleichText." + type
-									+ "_vs_" + channel + "SelbstVergleich" + ".pdf"));
-					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
-					JSONObject xAPI = createXAPIStatement2(jsonBody.get("email").toString(),
-							jsonBody.get("fileName").toString(), userTexts.get(channel),
-							fileBodyAPI, userCompareText.get(channel));
-					if (jsonBody.get("lrs") != null && jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
-						sendXAPIStatement(xAPI, lrsAuthToken);
-						System.out.println("xAPI statement created");
-					} //
-					JSONObject xAPImobsos = new JSONObject();
-					xAPImobsos.put("statement", xAPI);
-					xAPImobsos.put("token", lrsAuthToken);
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_4, xAPImobsos.toString());
-				} catch (ParseException e) {
-					e.printStackTrace();
-					System.out.println("could not create API statement");
-				}
-			}
-		}
-
-		JSONObject response = new JSONObject();
-		if (userTexts.get(channel) != null) {
-			System.out.println("converging pdf to base64");
-			try {
-				String type = "";
-				if (userCompareType.get(channel).toLowerCase().contains("pdf")) {
-					type = "pdf";
-				} else {
-					type = "txt";
-				}
-				byte[] pdfByte = Files.readAllBytes(
-						Paths.get("tmitocar/comparison_" + channel + "VergleichText." + type
-								+ "_vs_" + channel + "SelbstVergleich" + ".pdf"));
-				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
-				response.put("fileBody", fileBody);
-				response.put("fileType", "pdf");
-				response.put("fileName", "Feedback");
-				userTexts.remove(channel);
-				userCompareText.remove(channel);
-				System.out.println("finished conversion from pdf to base64");
-			} catch (Exception e) {
-				e.printStackTrace();
-				userTexts.remove(channel);
-				userCompareText.remove(channel);
-				System.out.println("failed conversion from pdf to base64");
-			}
-		}
-		errorMessage = "";
-		if ((userError.get(channel) != null && !userError.get(channel))
-				|| response.get("fileBody") == null) {
-			userCompareText.remove(channel);
-			if (jsonBody.get("submissionFailed") != null) {
-				errorMessage = replaceUmlaute(jsonBody.get("submissionFailed").toString());
-			} else {
-				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
-			}
-			System.out.println("Removing User from Errorlist1");
-			userError.remove(channel);
-		} else {
-			if (jsonBody.get("submissionSucceeded") != null)
-				errorMessage = replaceUmlaute(jsonBody.get("submissionSucceeded").toString());
-			System.out.println("Removing User from Errorlist2");
-			if (userError.get(channel) != null) {
-				userCompareText.remove(channel);
-				userError.remove(channel);
-			}
-		}
-		System.out.println("response is " + response);
-		response.put("text", errorMessage);
-		return Response.ok().entity(response).build();
-	}
-
-	// is used to first store the text of a user who wishes to compare their own
-	// texts
-	@POST
-	@Path("/storeCompareText")
-	@Consumes(MediaType.TEXT_PLAIN)
-	@Produces(MediaType.APPLICATION_JSON)
-	@ApiOperation(value = "REPLACE THIS WITH AN APPROPRIATE FUNCTION NAME", notes = "REPLACE THIS WITH YOUR NOTES TO THE FUNCTION")
-	@ApiResponses(value = {
-			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "REPLACE THIS WITH YOUR OK MESSAGE") })
-	public Response storeCompareText(String body) throws ParseException, IOException {
-		// add conversion to txt file + check whether file contains enough words.
-		System.out.println(body);
-		JSONObject jsonBody = new JSONObject();
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		jsonBody = (JSONObject) p.parse(body);
-		String channel = jsonBody.get("channel").toString();
-		System.out.println(jsonBody.get("fileName").toString());
-		// check if name has correct form
-		if ((!jsonBody.get("fileType").toString().toLowerCase().contains("pdf")
-				&& !jsonBody.get("fileType").toString().toLowerCase().contains("txt")
-				&& !jsonBody.get("fileType").toString().toLowerCase().contains("text"))) {
-			jsonBody = new JSONObject();
-			jsonBody.put("text", "Wrong file name/type");
-			return Response.ok().entity(jsonBody).build();
-		}
-		String message = "";
-		if (jsonBody.get("fileBody") != null) {
-			userCompareText.put(channel, jsonBody.get("fileBody").toString());
-			userCompareType.put(channel, jsonBody.get("fileType").toString());
-			userCompareName.put(jsonBody.get("email").toString(), jsonBody.get("fileName").toString());
-			if (jsonBody.get("submissionSucceeded") != null) {
-				message = jsonBody.get("submissionSucceeded").toString();
-			}
-		} else {
-			if (jsonBody.get("submissionFailed") != null) {
-				message = jsonBody.get("submissionFailed").toString();
-			} else
-				message = "Problem with reading file";
-		}
-		jsonBody = new JSONObject();
-		jsonBody.put("text", message);
-		return Response.ok().entity(jsonBody).build();
-	}
-
-	public Response compareUserTexts(String user, String expert, String template, TmitocarText body) {
-		// TODO Handle pdfs
-		isActive.put(user, true);
-		expertLabel.put(user, expert);
+	public boolean llm_feedback(@PathParam("label1") String label1, @PathParam("label2") String label2,
+			@PathParam("template") String template, TmitocarText body, String callbackUrl, String sourceFileId) {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+		isActive.put(label1, true);
 		JSONObject j = new JSONObject();
-		j.put("user", user);
+		j.put("user", label1);
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
-		System.out.println("Block user");
+		System.out.println("Block " + label1);
+		JSONObject error = new JSONObject();
+		JSONObject newText = new JSONObject();
 
-		// TODO Handle pdfs
+		CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
+		CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
+		MongoClientSettings settings = MongoClientSettings.builder()
+				.uuidRepresentation(UuidRepresentation.STANDARD)
+				.applyConnectionString(new ConnectionString(mongoUri))
+				.codecRegistry(codecRegistry)
+				.build();
+		// Create a new client and connect to the server
+		MongoClient mongoClient = MongoClients.create(settings);
+
 		try {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-					String textContent = "";
-					// problem here with the file name no? I mean if two threads do this, we will
-					// have one file overwriting the other?
-					String fileName = "text.txt";
-					String compareFileName = user + "VergleichText.txt";
-					System.out.println("Write File");
-					String type = body.getType();
-					String wordspec = body.getWordSpec();
+					String[] courseAndTask = label2.split("-");
+					int basisId = 0;
+					int courseId = Integer.parseInt(courseAndTask[0]);
+					Connection conn = null;
+					PreparedStatement stmt = null;
+					ResultSet rs = null;
 
-					if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
-						fileName = "text.txt";
-					} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
-						fileName = "text.pdf";
-					}
-					if (userCompareType.get(user).toLowerCase().equals("text/plain")
-							|| type.toLowerCase().equals("text")) {
-						compareFileName = user + "VergleichText.txt";
-					} else if (userCompareType.get(user).toLowerCase().equals("application/pdf")
-							|| userCompareType.get(user).toLowerCase().contains("pdf")) {
-						compareFileName = user + "VergleichText.pdf";
-					}
-					System.out.println(compareFileName);
-					File compare = new File("tmitocar/texts/" + user + "/" + compareFileName);
-					File f = new File("tmitocar/texts/" + user + "/" + fileName);
-
-					// bash tmitocar.sh -i experttexts/Experte_01.txt -l t1 -o json -s -S
 					try {
-						boolean c = compare.getParentFile().mkdirs();
-						c = compare.createNewFile();
-						boolean b = f.getParentFile().mkdirs();
-						b = f.createNewFile();
-						byte[] decodedBytesCompare = Base64.decode(userCompareText.get(user));
-						FileUtils.writeByteArrayToFile(compare, decodedBytesCompare);
-						String textContentCompare = "";
-						readTxtFile("tmitocar/texts/" + user + "/" + compareFileName);
-						if (compareFileName.toLowerCase().contains("pdf")) {
-							textContentCompare = readPDFFile("tmitocar/texts/" + user + "/" + compareFileName);
-						} else {
-							textContentCompare = readTxtFile("tmitocar/texts/" + user + "/" + compareFileName);
-						}
-						System.out.println(textContentCompare);
-						userCompareText.put(user, textContentCompare);
-						if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
-							/*
-							 * FileWriter writer = new FileWriter(f);
-							 * writer.write(body.getText().toLowerCase()); writer.close();
-							 */
-							byte[] decodedBytes = Base64.decode(body.getText());
-							System.out.println(decodedBytes);
-							FileUtils.writeByteArrayToFile(f, decodedBytes);
-							textContent = readTxtFile("tmitocar/texts/" + user + "/" + fileName);
-						} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
-							byte[] decodedBytes = Base64.decode(body.getText());
-							System.out.println(decodedBytes);
-							FileUtils.writeByteArrayToFile(f, decodedBytes);
-							textContent = readPDFFile("tmitocar/texts/" + user + "/" + fileName);
-						} else {
-							userError.put(user, false);
-							userCompareText.remove(user);
-							System.out.println("not enough words");
-							throw new IOException();
-						}
-						// spaces are not counted
-						if (textContent.replaceAll("\\s", "").length() < 350
-								|| textContentCompare.replaceAll("\\s", "").length() < 350) {
-							userError.put(user, false);
-							userCompareText.remove(user);
-							System.out.println("not enough words");
-							throw new IOException();
-						}
-						userTexts.put(user, textContent);
-
-					} catch (IOException e) {
-						System.out.println("An error occurred: " + e.getMessage());
+						conn = service.getConnection();
+						stmt = conn.prepareStatement("SELECT * FROM course WHERE id = ? ORDER BY id ASC");
+						stmt.setInt(1, courseId);
+						rs = stmt.executeQuery();
+						basisId = rs.getInt("basecourseid");
+					} catch (SQLException e) {
 						e.printStackTrace();
-
-						isActive.put(user, false);
-						Thread.currentThread().interrupt();
-					}
-					// add cleanup of text here like how i did it manually with the texts for
-					// leipzig
-
-					System.out.println("Upload text");
-					try {
-
-						// Store usercomparetext cwith label
-						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o
-						// json -s -S
-						ProcessBuilder pb0;
-						if (wordspec != null && wordspec.length() > 2) {
-							System.out.println("Using wordspec: " + wordspec);
-							pb0 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-									"texts/" + user + "/" + compareFileName, "-l", compareFileName, "-o", "json", "-w",
-									wordspec, "-S");
-						} else {
-							pb0 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-									"texts/" + user + "/" + compareFileName, "-l", compareFileName, "-o", "json", "-S");
-						}
-
-						pb0.inheritIO();
-						pb0.directory(new File("tmitocar"));
-						Process process0 = pb0.start();
+					} finally {
 						try {
-							process0.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							isActive.put(user, false);
-							userError.put(user, false);
-							Thread.currentThread().interrupt();
+							if (rs != null) {
+								rs.close();
+							}
+							if (stmt != null) {
+								stmt.close();
+							}
+							if (conn != null) {
+								conn.close();
+							}
+						} catch (SQLException ex) {
+							System.out.println(ex.getMessage());
 						}
+					}
 
-						// Store usertext cwith label
-						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o
-						// json -s -S
-						ProcessBuilder pb;
-						if (wordspec != null && wordspec.length() > 2) {
-							System.out.println("Using wordspec: " + wordspec);
-							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
-									"-l", user + expert, "-o", "json", "-w", wordspec, "-S");
+					storeFileLocally(label1, body.getText(), body.getType());
+					System.out.println("Upload text");
+					
+					try {
+						// Store usertext with label
+						String wordspec = body.getWordSpec();
+						String fileName = createFileName(label1, body.getType());
+						uploadToTmitocar(label1, fileName, wordspec);
+
+						System.out.println("Compare with expert.");
+						// compare with expert text
+						createComparison(label1, label2);
+
+						System.out.println("Store graph to MongoDB...");
+						ObjectId graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
+
+						newText.put("userId", label1);
+
+						File f = new File("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt");
+						File f_send = new File("tmitocar/texts/" + label1 + "/"+ label1 + "-" + courseAndTask[1] + ".txt-cleaned.txt");
+						if (f.exists()) {
+							System.out.println("Get content from -cleaned.txt.");
+							newText.put("studentInput", readTxtFile("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt"));
+							f.renameTo(f_send);
 						} else {
-							pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i", "texts/" + user + "/" + fileName,
-									"-l", user + expert, "-o", "json", "-S");
+							newText.put("studentInput", userTexts.get(label1));
+						}
+						
+						newText.put("taskNr", basisId+"-"+courseAndTask[1]);
+						newText.put("timestamp", System.currentTimeMillis());
+						System.out.println("New Text is:" + newText);
+
+						try {
+							// get keywords from file 
+							MongoDatabase database = mongoClient.getDatabase(mongoDB);
+							GridFSBucket gridFSBucket = GridFSBuckets.create(database, "files");
+							gridFSBucket.find(Filters.empty());
+							BsonObjectId bId = new BsonObjectId(graphFileId);
+							GridFSFile file = gridFSBucket.find(Filters.eq(bId)).first();
+							if (file == null) {
+								System.out.println("File with ID "+graphFileId+" not found");
+							}
+							Response.ResponseBuilder response = Response.ok(file.getObjectId().toHexString());
+							response.header("Content-Disposition", "attachment; filename=\"" + file.getFilename() + "\"");
+							
+							// Download the file to a ByteArrayOutputStream
+							ByteArrayOutputStream baos = new ByteArrayOutputStream();
+							gridFSBucket.downloadToStream(file.getObjectId(), baos);
+							String jsonStr = baos.toString();
+							JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
+							JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
+							JSONArray begriffeDiffB = (JSONArray) jsonObject.get("BegriffeDiffB");
+							newText.put("keywords", begriffeDiffB);							
+						} catch (MongoException me) {
+							System.err.println(me);
+						} finally {
+							mongoClient.close();
 						}
 
+						System.out.println("Get llm-generated feedback and store as markdown.");
+						//get LLM-generated feedback
+						String url = "http://16.171.64.118:8000/input/recommend";
+						HttpClient httpClient = HttpClient.newHttpClient();
+						HttpRequest httpRequest = HttpRequest.newBuilder()
+								.uri(UriBuilder.fromUri(url).build())
+								.header("Content-Type", "application/json")
+								.POST(HttpRequest.BodyPublishers.ofString(newText.toJSONString()))
+								.build();
+
+						// Send the request
+						HttpResponse<String> serviceResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+						System.out.println("Response Code:" + serviceResponse.statusCode());
+						System.out.println("Response Text" + serviceResponse.body());
+						JSONParser parser = new JSONParser();
+						JSONObject responseBody = (JSONObject) parser.parse(serviceResponse.body());
+						
+						String r = responseBody.get("response").toString();
+						String pattern = "\n(?!\\n)";
+						String r_new = r.replaceAll(pattern, "\n\n");
+
+						System.out.println("Write response to markdown.");
+						//store response as markdown
+						FileWriter writer = new FileWriter("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md");
+						writer.write(r_new);
+						writer.close();
+
+						System.out.println("Convert markdown to pdf.");
+						// store markdown as pdf
+						ProcessBuilder pb = new ProcessBuilder("pandoc", "comparison_" + label1 + "_vs_" + label2 + ".md" , "-o", "comparison_" + label1 + "_vs_" + label2 + ".pdf","--wrap=preserve");
 						pb.inheritIO();
 						pb.directory(new File("tmitocar"));
-						Process process = pb.start();
-						try {
-							process.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							isActive.put(user, false);
-							userError.put(user, false);
-							Thread.currentThread().interrupt();
+						Process process2 = pb.start();
+						process2.waitFor();
+						Files.delete(Paths.get("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md"));
+
+						System.out.println("Storing PDF to mongodb...");
+						ObjectId feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf" ,body.getTopic()+"-feedback.pdf");
+
+						String uuid = getUuidByEmail(body.getUuid());
+							if (uuid!=null){
+								// user has accepted
+							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
+							if(lrsCredentials!=null){
+								JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
+								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
+								String encodedString = Base64.encodeBytes(toEncode.getBytes());
+								sendXAPIStatement(xapi, encodedString);
+							}
 						}
 
-						System.out.println("compare with expert");
-						// compare with expert text
-						// bash tmitocar.sh -l usertext -c expert1 -T -s -o json
-						ProcessBuilder pb2 = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-l", compareFileName,
-								"-c", user + expert, "-o", "json", "-T");
-						pb2.inheritIO();
-						pb2.directory(new File("tmitocar"));
-						Process process2 = pb2.start();
-						try {
-							process2.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
+						JSONObject steve = new JSONObject();
+						// example, should be replaced with actual stuff
+						steve.put("graphFileId", graphFileId.toString());
+						steve.put("feedbackFileId", feedbackFileId.toString());
+						callBack(callbackUrl, label1, label1, label2, steve);
 
-							userError.put(user, false);
-							isActive.put(user, false);
-							Thread.currentThread().interrupt();
-						}
-
-						System.out.println("gen feedback");
-
-						// generate feedback
-						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
-						ProcessBuilder pb3 = new ProcessBuilder("bash", "feedback.sh", "-s", "-o", "pdf", "-i",
-								"comparison_" + compareFileName + "_vs_" + user + expert + ".json", "-t",
-								"templates/" + template, "-S", body.getTopic());
-						pb3.inheritIO();
-						pb3.directory(new File("tmitocar"));
-						Process process3 = pb3.start();
-						try {
-							process3.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							isActive.put(user, false);
-						}
-
-						// TODO
-						isActive.put(user, false);
+						isActive.put(label1, false);
 					} catch (IOException e) {
 						e.printStackTrace();
-						// userError.put(user, false);
-						isActive.put(user, false);
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					} catch (ParseException e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					}
+					catch (Exception e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
 					}
 				}
 			}).start();
-			return Response.ok().entity("").build();
+			return true;
 		} catch (Exception e) {
 			e.printStackTrace();
-			isActive.put(user, false);
-			expertLabel.remove(user);
-			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+			isActive.put(label1, false);
+			error.put("error", e.toString());
+			callBack(callbackUrl, label1, label1, label2, error);
+			return false;
+		}
+	}
+
+	public void callBack(String callbackUrl, String uuid, String label1, String label2, JSONObject body){
+		try {    
+			System.out.println("Starting callback to botmanager with url: " + callbackUrl+ "/" + uuid + "/" + label1 + "/" + label2 + "files");
+			Client textClient = ClientBuilder.newBuilder().register(MultiPartFeature.class).build();
+			FormDataMultiPart mp = new FormDataMultiPart();
+			System.out.println(body);
+			mp = mp.field("files", body.toJSONString());
+			WebTarget target = textClient
+					.target(callbackUrl + "/" + uuid + "/" + label1 + "/" + label2 + "/files");
+			Response response = target.request()
+					.post(javax.ws.rs.client.Entity.entity(mp, mp.getMediaType()));
+					String test = response.readEntity(String.class);
+			System.out.println("Finished callback to botmanager with response: " + test);
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
 	public Response processSingleText(String user, String expert, String template, TmitocarText body) {
-		// TODO Handle pdfs
 		isActive.put(user, true);
-		expertLabel.put(user, expert);
 		JSONObject j = new JSONObject();
 		j.put("user", user);
 		Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
 		System.out.println("Block user");
 
-		// TODO Handle pdfs
 		try {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
 					String textContent = "";
-					// problem here with the file name no? I mean if two threads do this, we will
-					// have one file overwriting the other?
-					String fileName = "text.txt";
-					System.out.println("Write File");
 					String type = body.getType();
+					String fileName = createFileName(user, type);
+					System.out.println("Write File");
 					String wordspec = body.getWordSpec();
 
-					if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
-						fileName = "text.txt";
-					} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
-						fileName = "text.pdf";
-					}
 					File f = new File("tmitocar/texts/" + user + "/" + fileName);
 					try {
 						boolean b = f.getParentFile().mkdirs();
 						b = f.createNewFile();
 
 						if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
-							/*
-							 * FileWriter writer = new FileWriter(f);
-							 * writer.write(body.getText().toLowerCase()); writer.close();
-							 */
 							byte[] decodedBytes = Base64.decode(body.getText());
-							System.out.println(decodedBytes);
 							FileUtils.writeByteArrayToFile(f, decodedBytes);
 							textContent = readTxtFile("tmitocar/texts/" + user + "/" + fileName);
 						} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
@@ -1384,74 +676,37 @@ public class TmitocarService extends RESTService {
 							System.out.println(decodedBytes);
 							FileUtils.writeByteArrayToFile(f, decodedBytes);
 							textContent = readPDFFile("tmitocar/texts/" + user + "/" + fileName);
+						} else if (type.equalsIgnoreCase("application/vnd.openxmlformats-officedocument.wordprocessingml.document") || type.equalsIgnoreCase("docx")) {
+							byte[] decodedBytes = Base64.decode(body.getText());
+							FileUtils.writeByteArrayToFile(f, decodedBytes);
+							textContent = readDocXFile("tmitocar/texts/" + user + "/" + fileName);
 						}
-						// spaces are not counted
 						if (textContent.replaceAll("\\s", "").length() < 350) {
-							userError.put(user, false);
 							System.out.println("not enough words");
 							throw new IOException();
 						}
 						userTexts.put(user, textContent);
-
 					} catch (IOException e) {
 						System.out.println("An error occurred: " + e.getMessage());
 						e.printStackTrace();
-
 						isActive.put(user, false);
 						Thread.currentThread().interrupt();
 					}
 
 					System.out.println("Upload text");
 					try {
-						// Store usertext cwith label
-						// bash tmitocar.sh -i texts/expert/UL_Fend_Novizentext_Eva.txt -l usertext -o
-						// json -s -S
-						ProcessBuilder pb;
-						if (wordspec != null && wordspec.length() > 2) {
-							System.out.println("Using wordspec: " + wordspec);
-							pb = new ProcessBuilder("bash", "tmitocar.sh", "-i", "texts/" + user + "/" + fileName, "-l",
-									user + expert, "-o", "svg", "-s", "-w", wordspec);
-						} else {
-							pb = new ProcessBuilder("bash", "tmitocar.sh", "-i", "texts/" + user + "/" + fileName, "-l",
-									user + expert, "-o", "svg", "-s");
-						}
-
-						pb.inheritIO();
-						pb.directory(new File("tmitocar"));
-						Process process = pb.start();
-						try {
-							process.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							isActive.put(user, false);
-							userError.put(user, false);
-							Thread.currentThread().interrupt();
-						}
+						uploadToTmitocar(user, fileName, wordspec);
 
 						System.out.println("gen feedback");
 
 						// generate feedback
-						// bash feedback.sh -o pdf -i comparison_usertext_vs_expert1.json -s
-						ProcessBuilder pb2 = new ProcessBuilder("bash", "feedback_single.sh", "-s", "-o", "pdf", "-i",
-								"texts/" + user + "/text-modell" + ".svg", "-t", "templates/" + template);
-						pb2.inheritIO();
-						pb2.directory(new File("tmitocar"));
-						Process process2 = pb2.start();
-						try {
-							process2.waitFor();
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							isActive.put(user, false);
-						}
-
-						// TODO
+						generateFeedback(user, expert, template, body.getTopic(), "feedback_single.sh");
 						isActive.put(user, false);
 					} catch (IOException e) {
 						e.printStackTrace();
-						// userError.put(user, false);
 						isActive.put(user, false);
+					} catch (InterruptedException e1) {
+						e1.printStackTrace();
 					}
 				}
 			}).start();
@@ -1459,159 +714,1137 @@ public class TmitocarService extends RESTService {
 		} catch (Exception e) {
 			e.printStackTrace();
 			isActive.put(user, false);
-			expertLabel.remove(user);
-			return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+			JSONObject err = new JSONObject();
+			err.put("errorMessage", e.getMessage());
+			err.put("error", true);
+			return Response.status(Status.BAD_REQUEST).entity(err.toString()).build();
 		}
 	}
 
-	// only analyzes and generates feedback for one text, without comparison
-	@POST
-	@Path("/analyzeSingleText")
-	@Consumes(MediaType.TEXT_PLAIN)
-	@Produces(MediaType.APPLICATION_JSON)
-	@ApiOperation(value = "REPLACE THIS WITH AN APPROPRIATE FUNCTION NAME", notes = "REPLACE THIS WITH YOUR NOTES TO THE FUNCTION")
-	@ApiResponses(value = {
-			@ApiResponse(code = HttpURLConnection.HTTP_OK, message = "REPLACE THIS WITH YOUR OK MESSAGE") })
-	public Response analyzeSingleText(String body) throws ParseException, IOException {
-		JSONObject jsonBody = new JSONObject();
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		jsonBody = (JSONObject) p.parse(body);
-		String channel = jsonBody.get("channel").toString();
-		String errorMessage = "";
-		try {
-			errorMessage = jsonBody.get("submissionFailed").toString();
-		} catch (NullPointerException e) {
-			errorMessage = "Fehler";
-		}
-
-		String topic = jsonBody.getAsString("topic");
-		String template = jsonBody.getAsString("template");
-
-		TmitocarText tmitoBody = new TmitocarText();
-		tmitoBody.setTopic(topic);
-		tmitoBody.setType(jsonBody.get("fileType").toString());
-		tmitoBody.setWordSpec("1200");
-		tmitoBody.setText(jsonBody.get("fileBody").toString());
-		processSingleText(channel, jsonBody.get("fileName").toString(), template, //"template_ddmz_single.md",
-				tmitoBody);
-		boolean isActive = true;
-		while (isActive) {
-			isActive = this.isActive.get(channel);
-			// isActive = Boolean.parseBoolean(result.getResponse());
-			System.out.println(isActive);
+	@Api(value = "Writing Task Resource")
+	@SwaggerDefinition(info = @Info(title = "Writing Task Resource", version = "1.0.0", description = "Todo.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@Path("/task")
+	public static class WritingTask {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+		
+		@GET
+		@Path("/")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAllTasks", notes = "Returns all writing tasks")
+		public Response getWritingTasks(@QueryParam("courseId") int courseId) {
+			
+			Connection conn = null;
+			PreparedStatement stmt = null;
+			ResultSet rs = null;
+			JSONArray jsonArray = new JSONArray();
+			JSONArray interactiveElements = new JSONArray();
+			String chatMessage = "";
 			try {
-				Thread.sleep(1000);
-			} catch (Exception e) {
-				jsonBody.put("text", "Exception ist passiert " + e.toString());
+				conn = service.getConnection();
+				if (courseId == 0) {
+					stmt = conn.prepareStatement("SELECT * FROM writingtask ORDER BY nr ASC;");
+				} else {
+					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE courseid = ? ORDER BY nr ASC;");
+					stmt.setInt(1, courseId);
+				}
+				rs = stmt.executeQuery();
+
+				while (rs.next()) {
+					courseId = rs.getInt("courseid");
+					int nr = rs.getInt("nr");
+					String text = rs.getString("text");
+					String title = rs.getString("title");
+
+					JSONObject jsonObject = new JSONObject();
+					jsonObject.put("courseId", courseId);
+					jsonObject.put("nr", nr);
+					jsonObject.put("text", text);
+					jsonObject.put("title", title);
+
+					jsonArray.add(jsonObject);
+					jsonObject = new JSONObject();
+					jsonObject.put("intent", "nummer "  + nr);
+					jsonObject.put("label", "Schreibaufgabe "+ nr);
+					jsonObject.put("isFile", false);
+
+					interactiveElements.add(jsonObject);
+					chatMessage += nr+": "+title+"\n<br>\n";
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}
-		}
-		System.out.println("Try creating xapi statement");
-		if (userError.get(channel) == null) {
-			if (userTexts.get(channel).length() < 20) {
-				userError.put(channel, false);
-			} else {
+			} finally {
 				try {
-					String lrsAuthToken = jsonBody.getAsString("lrsAuthToken");
-					System.out.println("try creating xapi statement");
-					byte[] pdfByteAPI = Files.readAllBytes(Paths
-							.get("tmitocar/texts/" + channel + "/" + "text-modell" + ".pdf"));
-					String fileBodyAPI = java.util.Base64.getEncoder().encodeToString(pdfByteAPI);
-					JSONObject xAPI = createXAPIStatement2(jsonBody.get("email").toString(),
-							jsonBody.get("fileName").toString(), userTexts.get(channel),
-							fileBodyAPI, "singleAnalysis");
-					if (jsonBody.get("lrs") != null && jsonBody.get("lrsAuthToken")!=null) {
-						sendXAPIStatement(xAPI, lrsAuthToken);
-						System.out.println("xAPI statement created");
+					if (rs != null) {
+						rs.close();
 					}
-					JSONObject xAPImobsos = new JSONObject();
-					xAPImobsos.put("statement", xAPI);
-					xAPImobsos.put("token", lrsAuthToken);
-					Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_4, xAPImobsos.toString());
-				} catch (ParseException e) {
-					e.printStackTrace();
-					System.out.println("Could not create API statement");
+					if (stmt != null) {
+						stmt.close();
+					}
+					if (conn != null) {
+						conn.close();
+					}
+				} catch (SQLException ex) {
+					System.out.println(ex.getMessage());
 				}
 			}
+			JSONObject response = new JSONObject();
+			response.put("data", jsonArray);
+			response.put("interactiveElements", interactiveElements);
+			response.put("chatMessage", chatMessage);
+			return Response.ok().entity(response.toString()).build();
 		}
 
-		JSONObject response = new JSONObject();
-		if (userTexts.get(channel) != null) {
-			System.out.println("converging pdf to base64");
+
+		@GET
+		@Path("/{tasknr}")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAllTasks", notes = "Returns writing task by id")
+		public Response getWritingTaskByNr(@PathParam("tasknr") int tasknr, @QueryParam("courseId") int courseId) {
+			
+			Connection conn = null;
+			PreparedStatement stmt = null;
+			ResultSet rs = null;
+			JSONArray jsonArray = new JSONArray();
+			String chatMessage = "";
+			String title = "";
+			int nr = tasknr;
 			try {
-				byte[] pdfByte = Files.readAllBytes(
-						Paths.get("tmitocar/texts/" + channel + "/" + "text-modell" + ".pdf"));
-				String fileBody = java.util.Base64.getEncoder().encodeToString(pdfByte);
-				response.put("fileBody", fileBody);
-				response.put("fileType", "pdf");
-				response.put("fileName", "Feedback");
-				userTexts.remove(channel);
-				System.out.println("finished conversion from pdf to base64");
-			} catch (Exception e) {
+				conn = service.getConnection();
+				if (courseId == 0) {
+					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE nr = ?");
+					stmt.setInt(1, tasknr);
+				} else {
+					stmt = conn.prepareStatement("SELECT * FROM writingtask WHERE nr = ? AND courseid = ?");
+					stmt.setInt(1, tasknr);
+					stmt.setInt(2, courseId);
+				}
+				rs = stmt.executeQuery();
+
+				while (rs.next()) {
+					courseId = rs.getInt("courseid");
+					nr = rs.getInt("nr");
+					String text = rs.getString("text");
+					title = rs.getString("title");
+
+					JSONObject jsonObject = new JSONObject();
+					jsonObject.put("courseId", courseId);
+					jsonObject.put("nr", nr);
+
+					jsonObject.put("text", text);
+					jsonObject.put("title", title);
+
+					jsonArray.add(jsonObject);
+					chatMessage += text + "\n<br>";
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
 				e.printStackTrace();
-				System.out.println("failed conversion from pdf to base64");
-			}
-		}
-		errorMessage = "";
-		if ((userError.get(channel) != null && !userError.get(channel))
-				|| response.get("fileBody") == null) {
-			if (jsonBody.get("submissionFailed") != null) {
-				errorMessage = replaceUmlaute(jsonBody.get("submissionFailed").toString());
-			} else {
-				errorMessage = "Irgendwas ist schief, gelaufen :o. Die Feedback Datei konnte nicht erzeugt werden oder ist möglicherweise nicht vollständig :/";
-			}
-			System.out.println("Removing User from Errorlist1");
-			userError.remove(channel);
-		} else {
-			if (jsonBody.get("submissionSucceeded") != null)
-				errorMessage = replaceUmlaute(jsonBody.get("submissionSucceeded").toString());
-			System.out.println("Removing User from Errorlist2");
-			if (userError.get(channel) != null) {
-				userError.remove(channel);
-			}
-		}
-		// System.out.println("response is " + response);
-		response.put("text", errorMessage);
-		return Response.ok().entity(response).build();
-	}
-
-	public static String encryptThisString(String input) {
-		try {
-			// getInstance() method is called with algorithm SHA-384
-			MessageDigest md = MessageDigest.getInstance("SHA-384");
-
-			// digest() method is called
-			// to calculate message digest of the input string
-			// returned as array of byte
-			byte[] messageDigest = md.digest(input.getBytes());
-
-			// Convert byte array into signum representation
-			BigInteger no = new BigInteger(1, messageDigest);
-
-			// Convert message digest into hex value
-			String hashtext = no.toString(16);
-
-			// Add preceding 0s to make it 32 bit
-			try {
-				System.out.println(hashtext.getBytes("UTF-16BE").length * 8);
-				while (hashtext.getBytes("UTF-16BE").length * 8 < 1536) {
-					hashtext = "0" + hashtext;
+			} finally {
+				try {
+					if (rs != null) {
+						rs.close();
+					}
+					if (stmt != null) {
+						stmt.close();
+					}
+					if (conn != null) {
+						conn.close();
+					}
+				} catch (SQLException ex) {
+					System.out.println(ex.getMessage());
 				}
-			} catch (Exception e) {
-				System.out.println(e);
 			}
-
-			// return the HashText
-			return hashtext;
+			JSONObject response = new JSONObject();
+			response.put("data", jsonArray);
+			response.put("chatMessage", chatMessage);
+			response.put("title", title);
+			response.put("nr", nr);
+			return Response.ok().entity(response.toString()).build();
 		}
 
-		// For specifying wrong message digest algorithms
-		catch (NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
+	}
+
+	@Api(value = "Text Resource")
+	@SwaggerDefinition(info = @Info(title = "Text Resource", version = "1.0.0", description = "This API is responsible for storing a text file on the T-MITOCAR server for later use as a comparison text.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@Path("/text")
+	public static class TMitocarText {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+
+		/**
+		 * Store text
+		 *
+		 * @param label1          the first label (user text)
+		 * @param textInputStream the InputStream containing the text to compare
+		 * @param textFileDetail  the file details of the text file
+		 * @param type            the type of text (txt, pdf, docx)
+		 * @return id of the stored file
+		 * @throws ParseException if there is an error parsing the input parameters
+		 * @throws IOException    if there is an error reading the input stream
+		 */
+		@POST
+		@Path("/{label1}")
+		@Consumes(MediaType.MULTIPART_FORM_DATA)
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "analyzeText", notes = "Analyzes a text and generates a PDF report")
+		public Response analyzeText(@PathParam("label1") String label1,
+				@FormDataParam("file") InputStream textInputStream,
+				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
+				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
+				@FormDataParam("wordSpec") String wordSpec) throws ParseException, IOException {
+			if (isActive.getOrDefault(label1, false)) {
+				return Response.status(Status.BAD_REQUEST).entity("User: " + label1 + " currently busy.").build();
+			}
+			File templatePath = new File("tmitocar/templates/" + template);
+			if (!templatePath.exists()){
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "Template: " + template + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			isActive.put(label1, true);
+			String encodedByteString = convertInputStreamToBase64(textInputStream);
+			TmitocarText tmitoBody = new TmitocarText();
+			tmitoBody.setTopic(topic);
+			tmitoBody.setType(type);
+			tmitoBody.setWordSpec(wordSpec);
+			tmitoBody.setTemplate(template);
+			tmitoBody.setText(encodedByteString);
+			service.processSingleText(label1, topic, template, tmitoBody);
+
+			byte[] bytes = Base64.decode(encodedByteString);
+			String fname = textFileDetail.getFileName();
+			String fileEnding = "txt";
+			int dotIndex = fname.lastIndexOf('.');
+			if (dotIndex > 0 && dotIndex < fname.length() - 1) {
+				fileEnding = fname.substring(dotIndex + 1);
+			}
+			ObjectId uploaded = service.storeFile(topic+"."+fileEnding, bytes);
+			if (uploaded == null) {
+				return Response.status(Status.BAD_REQUEST).entity("Could not store file " + fname).build();
+			}
+			try {
+				textInputStream.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			TmitocarResponse response = new TmitocarResponse(uploaded.toString());
+			Gson g = new Gson();
+			return Response.ok().entity(g.toJson(response)).build();
 		}
 	}
 
-	public static String readTxtFile(String fileName) {
+
+	@Api(value = "Analysis Resource")
+	@SwaggerDefinition(info = @Info(title = "Analysis Resource", version = "1.0.0", description = "Todo", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@Path("/analysis")
+	public static class Analysis {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+
+		/**
+		 * Anaylze text
+		 */
+		@GET
+		@Path("/{fileId}/commonWords")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "get", notes = "Analyzes a text and generates a PDF report")
+		public Response getCommonWords(@PathParam("fileId") String fileId) throws ParseException, IOException {
+
+			CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
+				CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
+				MongoClientSettings settings = MongoClientSettings.builder()
+						.uuidRepresentation(UuidRepresentation.STANDARD)
+						.applyConnectionString(new ConnectionString(service.mongoUri))
+						.codecRegistry(codecRegistry)
+						.build();
+				
+				// Create a new client and connect to the server
+				MongoClient mongoClient = MongoClients.create(settings);
+				
+				try {
+					MongoDatabase database = mongoClient.getDatabase(service.mongoDB);
+					GridFSBucket gridFSBucket = GridFSBuckets.create(database, "files");
+					gridFSBucket.find(Filters.empty());
+					ObjectId oId = new ObjectId(fileId);
+					BsonObjectId bId = new BsonObjectId(oId);
+					GridFSFile file = gridFSBucket.find(Filters.eq(bId)).first();
+					if (file == null) {
+						return Response.status(Response.Status.NOT_FOUND).entity("File with ID "+fileId+" not found").build();
+					}
+					Response.ResponseBuilder response = Response.ok(file.getObjectId().toHexString());
+					response.header("Content-Disposition", "attachment; filename=\"" + file.getFilename() + "\"");
+					
+					// Download the file to a ByteArrayOutputStream
+					ByteArrayOutputStream baos = new ByteArrayOutputStream();
+					gridFSBucket.downloadToStream(file.getObjectId(), baos);
+					String jsonStr = baos.toString();
+					JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
+
+					// Parse the JSON string into a JSONObject
+					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
+					String formattedMessage = "Danke, besprich das gern auch mit Kommiliton:innen und deinem/r Dozent:in. Wenn ich jetzt deinen Text und den Expertentext vergleiche, dann tauchen in beiden Texten folgende Begriffe als wesentlich auf:\n";
+					JSONArray bSchnittmengeArray = (JSONArray) jsonObject.get("BegriffeSchnittmenge");
+					formattedMessage += formatJSONArray(bSchnittmengeArray);
+					formattedMessage += "Wenn du nochmal an die Aufgabenstellung denkst, fehlen Schlüsselbegriffe, die du noch ergänzen würdest? Wenn ja, welche?";
+					JSONObject resBody = new JSONObject();
+					resBody.put("formattedMessage",formatJSONArray(bSchnittmengeArray));
+					
+					return Response.ok(resBody.toString()).build();
+				} catch (MongoException me) {
+					System.err.println(me);
+				} finally {
+					// Close the MongoDB client
+					mongoClient.close();
+				}
+				return Response.status(Response.Status.BAD_REQUEST).entity("Something went wrong getting common words for analysis: "+fileId).build();
+			}
+
+		/**
+		 * Anaylze text
+		 */
+		@GET
+		@Path("/{fileId}/label2Words")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "get", notes = "Analyzes a text and generates a PDF report")
+		public Response getLabel2Words(@PathParam("fileId") String fileId) throws ParseException, IOException {
+
+			CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
+				CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
+				MongoClientSettings settings = MongoClientSettings.builder()
+						.uuidRepresentation(UuidRepresentation.STANDARD)
+						.applyConnectionString(new ConnectionString(service.mongoUri))
+						.codecRegistry(codecRegistry)
+						.build();
+				
+				// Create a new client and connect to the server
+				MongoClient mongoClient = MongoClients.create(settings);
+				
+				try {
+					MongoDatabase database = mongoClient.getDatabase(service.mongoDB);
+					GridFSBucket gridFSBucket = GridFSBuckets.create(database, "files");
+					gridFSBucket.find(Filters.empty());
+					ObjectId oId = new ObjectId(fileId);
+					BsonObjectId bId = new BsonObjectId(oId);
+					GridFSFile file = gridFSBucket.find(Filters.eq(bId)).first();
+					if (file == null) {
+						return Response.status(Response.Status.NOT_FOUND).entity("File with ID "+fileId+" not found").build();
+					}
+					Response.ResponseBuilder response = Response.ok(file.getObjectId().toHexString());
+					response.header("Content-Disposition", "attachment; filename=\"" + file.getFilename() + "\"");
+					
+					// Download the file to a ByteArrayOutputStream
+					ByteArrayOutputStream baos = new ByteArrayOutputStream();
+					gridFSBucket.downloadToStream(file.getObjectId(), baos);
+					String jsonStr = baos.toString();
+					JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
+
+					// Parse the JSON string into a JSONObject
+					JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
+					String formattedMessage = "Übrigens gibt es noch folgende Begriffe, die im Expertentext genannt wurden, aber noch nicht in deinem Text auftauchen::\n";
+					formattedMessage += "-------------------------\n";
+					JSONArray bDiffArray = (JSONArray) jsonObject.get("BegriffeDiffB");
+					formattedMessage += formatJSONArray(bDiffArray);
+					formattedMessage += "Überleg nochmal, welche davon du sinnvoll in deinen Text einbauen kannst und möchtest.";
+					JSONObject resBody = new JSONObject();
+					resBody.put("formattedMessage",formatJSONArray(bDiffArray));
+					return Response.ok(resBody.toString()).build();
+				} catch (MongoException me) {
+					System.err.println(me);
+				} finally {
+					// Close the MongoDB client
+					mongoClient.close();
+				}
+				return Response.status(Response.Status.BAD_REQUEST).entity("Something went wrong getting label2 words for analysis: "+fileId).build();
+			}
+			
+		}
+
+
+		// Helper method to format a JSONArray as a string
+		private static String formatJSONArray(JSONArray jsonArray) {
+			StringBuilder builder = new StringBuilder();
+			
+			for (Object value : jsonArray) {
+				String strValue = (String) value;
+				// currently adjusted to fit the MWB frontend
+				builder.append("- ").append(strValue).append("\n");
+			}
+			return builder.toString();
+		}
+
+
+	@Api(value = "Feedback Resource")
+	@SwaggerDefinition(info = @Info(title = "Feedback Resource", version = "1.0.0", description = "This API is responsible for handling text documents in txt, pdf or docx format and sending them to T-MITOCAR for processing. The feedback is then saved in a MongoDB and the document IDs are returned.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@Path("/feedback")
+	public static class Feedback {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+
+		/**
+		 * Anaylze text
+		 *
+		 * @param label1          the first label (user text)
+		 * @param textInputStream the InputStream containing the text to compare
+		 * @param textFileDetail  the file details of the text file
+		 * @param type            the type of text (txt, pdf or docx)
+		 * @param topic           the topic of the text (e.g. BiWi 5)
+		 * @param template        the template to use for the PDF report
+		 * @param wordSpec        the word specification for the PDF report
+		 * @return the id of the stored file
+		 * @throws ParseException if there is an error parsing the input parameters
+		 * @throws IOException    if there is an error reading the input stream
+		 */
+		@POST
+		@Path("/{label1}")
+		@Consumes(MediaType.MULTIPART_FORM_DATA)
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "analyzeText", notes = "Analyzes a text and generates a PDF report")
+		public Response analyzeText(@PathParam("label1") String label1,
+				@FormDataParam("file") InputStream textInputStream,
+				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
+				@FormDataParam("topic") String topic, @FormDataParam("template") String template,
+				@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId,@FormDataParam("task") int task, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
+			if (isActive.getOrDefault(label1, false)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+
+			
+			File templatePath = new File("tmitocar/templates/" + template);
+			if (!templatePath.exists()){
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "Template: " + template + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			isActive.put(label1, true);
+			String encodedByteString = convertInputStreamToBase64(textInputStream);
+			TmitocarText tmitoBody = new TmitocarText();
+			tmitoBody.setTopic(topic);
+			tmitoBody.setType(type);
+			tmitoBody.setWordSpec(wordSpec);
+			tmitoBody.setTemplate(template);
+			tmitoBody.setText(encodedByteString);
+			service.processSingleText(label1, topic, template, tmitoBody);
+
+			byte[] bytes = Base64.decode(encodedByteString);
+			String fname = textFileDetail.getFileName();
+
+			String fileEnding = "txt";
+			int dotIndex = fname.lastIndexOf('.');
+			if (dotIndex > 0 && dotIndex < fname.length() - 1) {
+				fileEnding = fname.substring(dotIndex + 1);
+			}
+
+			ObjectId uploaded = service.storeFile(topic+"."+fileEnding, bytes);
+			if (uploaded == null) {
+				return Response.status(Status.BAD_REQUEST).entity("Could not store file " + fname).build();
+			}
+			try {
+				textInputStream.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			TmitocarResponse response = new TmitocarResponse(uploaded.toString());
+			String uuid = service.getUuidByEmail(email);
+			if (uuid!=null){
+				// user has accepted
+				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
+				if(lrsCredentials!=null){
+					JSONObject xapi = service.prepareXapiStatement(uuid, "uploaded_task", topic, courseId, task, uploaded.toString(),null,null);
+					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
+					String encodedString = Base64.encodeBytes(toEncode.getBytes());
+
+					service.sendXAPIStatement(xapi, encodedString);
+				}
+			}
+			Gson g = new Gson();
+			return Response.ok().entity(g.toJson(response)).build();
+		}
+
+		@GET
+		@Path("/{label1}")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAnalyzedText", notes = "Returns analyzed text report (PDF)")
+		public Response getAnalyzedText(@PathParam("label1") String label1) throws ParseException, IOException {
+			if (!isActive.containsKey(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			if (isActive.get(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			JSONObject err = new JSONObject();
+			ObjectId fileId = null;
+			if (userTexts.get(label1) != null) {
+				System.out.println("Storing PDF to mongodb...");
+				try {
+					byte[] pdfByte = Files.readAllBytes(
+							Paths.get("tmitocar/texts/" + label1 + "/" + label1 + "-modell" + ".pdf"));
+					fileId = service.storeFile(label1 + "-feedback.pdf", pdfByte);
+					Files.delete(Paths.get("tmitocar/texts/" + label1 + "/" + label1 + "-modell" + ".pdf"));
+				} catch (Exception e) {
+					e.printStackTrace();
+					isActive.put(label1, false);
+					System.out.println("Failed storing PDF.");
+				}
+			} else {
+				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error", true);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
+			}
+
+			if (fileId == null) {
+				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error", true);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
+			}
+			TmitocarResponse response = new TmitocarResponse(null, fileId.toString());
+			Gson g = new Gson();
+			return Response.ok().entity(g.toJson(response)).build();
+		}
+
+		/**
+		 * Compare text
+		 *
+		 * @param label1          the first label (user text)
+		 * @param label2          the second label (expert or second user text)
+		 * @param textInputStream the InputStream containing the text to compare
+		 * @param textFileDetail  the file details of the text file
+		 * @param type            the type of text (txt, pdf or docx)
+		 * @param template        the template to use for the PDF report
+		 * @param wordSpec        the word specification for the PDF report
+		 * @return the id of the stored file
+		 * @throws ParseException if there is an error parsing the input parameters
+		 * @throws IOException    if there is an error reading the input stream
+		 */
+		@POST
+		@Path("/{label1}/compare/{label2}")
+		@Consumes(MediaType.MULTIPART_FORM_DATA)
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "compareText", notes = "Compares two texts and generates a PDF report")
+		public Response compareText(@PathParam("label1") String label1, @PathParam("label2") String label2,
+				@FormDataParam("file") InputStream textInputStream,
+				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type, @FormDataParam("template") String template,
+				@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
+			if (isActive.getOrDefault(label1, false)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			
+			File templatePath = new File("tmitocar/templates/" + template);
+			if (!templatePath.exists()){
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "Template: " + template + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			
+			isActive.put(label1, true);
+
+			String topic = service.getTaskNameByIds(courseId, Integer.parseInt(label2));
+
+
+			String encodedByteString = convertInputStreamToBase64(textInputStream);
+			TmitocarText tmitoBody = new TmitocarText();
+			tmitoBody.setTopic(topic);
+			tmitoBody.setType(type);
+			tmitoBody.setWordSpec(wordSpec);
+			tmitoBody.setTemplate(template);
+			tmitoBody.setText(encodedByteString);
+			tmitoBody.setUuid(email);
+			byte[] bytes = Base64.decode(encodedByteString);
+			String fname = textFileDetail.getFileName();
+			String fileEnding = "txt";
+			int dotIndex = fname.lastIndexOf('.');
+			if (dotIndex > 0 && dotIndex < fname.length() - 1) {
+				fileEnding = fname.substring(dotIndex + 1);
+			}
+			ObjectId uploaded = service.storeFile(topic +  "." + fileEnding, bytes);
+			if (uploaded == null) {
+				return Response.status(Status.BAD_REQUEST).entity("Could not store file " + fname).build();
+			}
+			try {
+				textInputStream.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			boolean comparing = service.compareText(label1, courseId + "-"+ label2, template, tmitoBody, sbfmURL,uploaded.toString());
+
+			if (!comparing) {
+				isActive.put(label1, false);
+				return Response.status(Status.BAD_REQUEST).entity("Something went wrong: " + label1 + ".").build();
+			}
+
+			
+			TmitocarResponse response = new TmitocarResponse(uploaded.toString());
+			response.setLabel1(label1);
+			response.setLabel2(courseId + "-"+ label2);
+			String uuid = service.getUuidByEmail(email);
+			if (uuid!=null){
+				// user has accepted
+				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
+				if(lrsCredentials!=null){
+					JSONObject xapi = service.prepareXapiStatement(uuid, "uploaded_task", topic, courseId, Integer.parseInt(label2), uploaded.toString(),null,null);
+					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
+					String encodedString = Base64.encodeBytes(toEncode.getBytes());
+					service.sendXAPIStatement(xapi, encodedString);
+				}
+			}
+			Gson g = new Gson();
+			return Response.ok().entity(g.toJson(response)).build();
+		}
+
+		@GET
+		@Path("/{label1}/compare/{label2}")
+		@Consumes(MediaType.MULTIPART_FORM_DATA)
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getComparedText", notes = "Returns compared text report (PDF)")
+		public Response getComparedText(@PathParam("label1") String label1, @PathParam("label2") String label2)
+				throws ParseException, IOException {
+			if (!isActive.containsKey(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			if (isActive.get(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			JSONObject err = new JSONObject();
+			ObjectId feedbackFileId = null;
+			ObjectId graphFileId = null;
+			if (userTexts.get(label1) != null) {
+				System.out.println("Storing PDF to mongodb...");
+				feedbackFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf");
+				graphFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json");
+
+			} else {
+				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error", true);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
+			}
+
+			if (feedbackFileId == null) {
+				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error", true);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
+			}
+			if (graphFileId == null) {
+				err.put("errorMessage", "Something went wrong storing the graph for " + label1);
+				err.put("error", true);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
+			}
+			TmitocarResponse response = new TmitocarResponse(null, feedbackFileId.toString(), graphFileId.toString());
+			Gson g = new Gson();
+			return Response.ok().entity(g.toJson(response)).build();
+		}
+
+		/**
+		 * Compare text
+		 *
+		 * @param label1          the first label (user text)
+		 * @param label2          the second label (expert or second user text)
+		 * @param textInputStream the InputStream containing the text to compare
+		 * @param textFileDetail  the file details of the text file
+		 * @param type            the type of text (txt, pdf or docx)
+		 * @param template        the template to use for the PDF report
+		 * @param wordSpec        the word specification for the PDF report
+		 * @return the id of the stored file
+		 * @throws ParseException if there is an error parsing the input parameters
+		 * @throws IOException    if there is an error reading the input stream
+		 */
+		@POST
+		@Path("/{label1}/compareWithLLM/{label2}")
+		@Consumes(MediaType.MULTIPART_FORM_DATA)
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "compareTextWithLLM", notes = "Compares two texts and generates a PDF report")
+		public Response compareTextWithLLM(@PathParam("label1") String label1, @PathParam("label2") String label2,
+				@FormDataParam("file") InputStream textInputStream,
+				@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type, @FormDataParam("template") String template,
+				@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
+			if (isActive.getOrDefault(label1, false)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			
+			File templatePath = new File("tmitocar/templates/" + template);
+			if (!templatePath.exists()){
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "Template: " + template + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			
+			isActive.put(label1, true);
+
+			String topic = service.getTaskNameByIds(courseId, Integer.parseInt(label2));
+
+
+			String encodedByteString = convertInputStreamToBase64(textInputStream);
+			TmitocarText tmitoBody = new TmitocarText();
+			tmitoBody.setTopic(topic);
+			tmitoBody.setType(type);
+			tmitoBody.setWordSpec(wordSpec);
+			tmitoBody.setTemplate(template);
+			tmitoBody.setText(encodedByteString);
+			tmitoBody.setUuid(email);
+			byte[] bytes = Base64.decode(encodedByteString);
+			String fname = textFileDetail.getFileName();
+			String fileEnding = "txt";
+			int dotIndex = fname.lastIndexOf('.');
+			if (dotIndex > 0 && dotIndex < fname.length() - 1) {
+				fileEnding = fname.substring(dotIndex + 1);
+			}
+			ObjectId uploaded = service.storeFile(topic +  "." + fileEnding, bytes);
+			if (uploaded == null) {
+				return Response.status(Status.BAD_REQUEST).entity("Could not store file " + fname).build();
+			}
+			try {
+				textInputStream.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			boolean comparing = service.llm_feedback(label1, courseId + "-"+ label2, template, tmitoBody, sbfmURL,uploaded.toString());
+
+			if (!comparing) {
+				isActive.put(label1, false);
+				return Response.status(Status.BAD_REQUEST).entity("Something went wrong: " + label1 + ".").build();
+			}
+
+			
+			TmitocarResponse response = new TmitocarResponse(uploaded.toString());
+			response.setLabel1(label1);
+			response.setLabel2(courseId + "-"+ label2);
+			String uuid = service.getUuidByEmail(email);
+			if (uuid!=null){
+				// user has accepted
+				LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
+				if(lrsCredentials!=null){
+					JSONObject xapi = service.prepareXapiStatement(uuid, "uploaded_task", topic, courseId, Integer.parseInt(label2), uploaded.toString(),null,null);
+					String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
+					String encodedString = Base64.encodeBytes(toEncode.getBytes());
+					service.sendXAPIStatement(xapi, encodedString);
+				}
+			}
+			Gson g = new Gson();
+			return Response.ok().entity(g.toJson(response)).build();
+		}
+
+		@GET
+		@Path("/{label1}/compareWithLLM/{label2}")
+		@Consumes(MediaType.MULTIPART_FORM_DATA)
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getComparedTextWithLLM", notes = "Returns compared text report (PDF)")
+		public Response getComparedTextWithLLM(@PathParam("label1") String label1, @PathParam("label2") String label2)
+				throws ParseException, IOException {
+			if (!isActive.containsKey(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " not found.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			if (isActive.get(label1)) {
+				JSONObject err = new JSONObject();
+				err.put("errorMessage", "User: " + label1 + " currently busy.");
+				err.put("error", true);
+				return Response.status(Status.NOT_FOUND).entity(err.toJSONString()).build();
+			}
+			JSONObject err = new JSONObject();
+			ObjectId feedbackFileId = null;
+			ObjectId graphFileId = null;
+			if (userTexts.get(label1) != null) {
+				System.out.println("Storing PDF to mongodb...");
+				feedbackFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf");
+				graphFileId = service.storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json");
+
+			} else {
+				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error", true);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
+			}
+
+			if (feedbackFileId == null) {
+				err.put("errorMessage", "Something went wrong storing the feedback for " + label1);
+				err.put("error", true);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
+			}
+			if (graphFileId == null) {
+				err.put("errorMessage", "Something went wrong storing the graph for " + label1);
+				err.put("error", true);
+				return Response.status(Status.BAD_REQUEST).entity(err.toJSONString()).build();
+			}
+			TmitocarResponse response = new TmitocarResponse(null, feedbackFileId.toString(), graphFileId.toString());
+			Gson g = new Gson();
+			return Response.ok().entity(g.toJson(response)).build();
+		}
+	}
+
+	@Api(value = "FAQ Resource")
+	@SwaggerDefinition(info = @Info(title = "FAQ Resource", version = "1.0.0", description = "Todo.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@Path("/faq")
+	public static class FAQ {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+		
+		@GET
+		@Path("/")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAllQuestions", notes = "Returns all questions")
+		public Response getFAQ(@QueryParam("courseId") int courseId) {
+			
+			Connection conn = null;
+			PreparedStatement stmt = null;
+			ResultSet rs = null;
+			JSONArray jsonArray = new JSONArray();
+			JSONArray interactiveElements = new JSONArray();
+			String chatMessage = "";
+			try {
+				conn = service.getConnection();
+				if (courseId == 0) {
+					stmt = conn.prepareStatement("SELECT * FROM coursefaq;");
+				} else {
+					stmt = conn.prepareStatement("SELECT * FROM coursefaq WHERE courseid = ?;");
+					stmt.setInt(1, courseId);
+				}
+				rs = stmt.executeQuery();
+
+				while (rs.next()) {
+					courseId = rs.getInt("courseid");
+					String text = rs.getString("answer");
+					String intent = rs.getString("intent");
+
+					JSONObject jsonObject = new JSONObject();
+					jsonObject.put("courseId", courseId);
+					jsonObject.put("text", text);
+					jsonObject.put("intent", intent);
+
+					jsonArray.add(jsonObject);
+					jsonObject = new JSONObject();
+					jsonObject.put("intent", intent);
+					jsonObject.put("label", "Question "+ intent);
+					jsonObject.put("isFile", false);
+
+					interactiveElements.add(jsonObject);
+					chatMessage += intent+": "+text+"\n<br>\n";
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} finally {
+				try {
+					if (rs != null) {
+						rs.close();
+					}
+					if (stmt != null) {
+						stmt.close();
+					}
+					if (conn != null) {
+						conn.close();
+					}
+				} catch (SQLException ex) {
+					System.out.println(ex.getMessage());
+				}
+			}
+			JSONObject response = new JSONObject();
+			response.put("data", jsonArray);
+			response.put("interactiveElements", interactiveElements);
+			response.put("chatMessage", chatMessage);
+			return Response.ok().entity(response.toString()).build();
+		}
+
+
+		@GET
+		@Path("/{intent}")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAllTasks", notes = "Returns writing task by id")
+		public Response getFAQByIntent(@PathParam("intent") String intent, @QueryParam("courseId") int courseId) {
+			
+			Connection conn = null;
+			PreparedStatement stmt = null;
+			ResultSet rs = null;
+			JSONArray jsonArray = new JSONArray();
+			String chatMessage = "";
+			
+			try {
+				conn = service.getConnection();
+				if (courseId == 0) {
+					stmt = conn.prepareStatement("SELECT * FROM coursefaq WHERE intent = ?");
+					stmt.setString(1, intent);
+				} else {
+					stmt = conn.prepareStatement("SELECT * FROM coursefaq WHERE intent = ? AND courseid = ?");
+					stmt.setString(1, intent);
+					stmt.setInt(2, courseId);
+				}
+				System.out.println("parameters are: " + intent + courseId);
+				System.out.println(stmt.toString());
+				rs = stmt.executeQuery();
+
+				while (rs.next()) {
+					String text = rs.getString("answer");
+					//String title = rs.getString("title");
+
+					chatMessage += text + "\n<br>";
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} finally {
+				try {
+					if (rs != null) {
+						rs.close();
+					}
+					if (stmt != null) {
+						stmt.close();
+					}
+					if (conn != null) {
+						conn.close();
+					}
+				} catch (SQLException ex) {
+					System.out.println(ex.getMessage());
+				}
+			}
+			if (chatMessage == "") {
+				stmt = null;
+				conn = null;
+				rs = null;
+				try{
+					conn = service.getConnection();
+					if (courseId == 0) {
+						stmt = conn.prepareStatement("SELECT * FROM courseFAQ WHERE intent = 'default'");
+					} else {
+						stmt = conn.prepareStatement("SELECT * FROM courseFAQ WHERE intent = 'default' AND courseid = ?");
+						stmt.setInt(1, courseId);
+					}
+					rs = stmt.executeQuery();
+
+					while (rs.next()) {
+						String text = rs.getString("answer");
+						//String title = rs.getString("title");
+	
+						chatMessage += text + "\n<br>";
+					}
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} finally {
+					try {
+						if (rs != null) {
+							rs.close();
+						}
+						if (stmt != null) {
+							stmt.close();
+						}
+						if (conn != null) {
+							conn.close();
+						}
+					} catch (SQLException ex) {
+						System.out.println(ex.getMessage());
+					}
+				}
+
+			}
+			JSONObject response = new JSONObject();
+			response.put("chatMessage", chatMessage);
+			return Response.ok().entity(response.toString()).build();
+		}
+
+	}
+
+	@Api(value = "Credits Resource")
+	@SwaggerDefinition(info = @Info(title = "Credits Resource", version = "1.0.0", description = "Todo.", termsOfService = "https://tech4comp.de/", contact = @Contact(name = "Alexander Tobias Neumann", url = "https://tech4comp.dbis.rwth-aachen.de/", email = "neumann@dbis.rwth-aachen.de"), license = @License(name = "ACIS License (BSD3)", url = "https://github.com/rwth-acis/las2peer-tmitocar-Service/blob/master/LICENSE")))
+	@Path("/credits")
+	public static class Credits {
+		TmitocarService service = (TmitocarService) Context.get().getService();
+
+		@GET
+		@Path("/")
+		@Produces(MediaType.APPLICATION_JSON)
+		@ApiResponses(value = { @ApiResponse(code = HttpURLConnection.HTTP_OK, message = "") })
+		@ApiOperation(value = "getAllTasks", notes = "Returns writing task by id")
+		public Response getCreditsByUser(@QueryParam("email") String email, @QueryParam("courseId") int courseId) {
+			String user = service.getUuidByEmail(email);
+			JSONObject jsonBody = new JSONObject();
+			JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+			if(courseId != 6 && courseId != 2 && courseId != 11){
+				JSONObject error = new JSONObject();
+				error.put("chateMessage","Keine Credits für deinen Kurs :).");
+				return Response.ok().entity(error.toString()).build();
+			}
+			try{
+				JSONObject acc = (JSONObject) p.parse(new String("{'account': { 'name': '" + user
+					+ "', 'homePage': '"+ service.xapiHomepage + "'}}"));
+				
+				LrsCredentials res = service.getLrsCredentialsByCourse(courseId);
+				URL url = new URL(service.lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
+				if(res==null){
+					return Response.ok().entity("problem").build();
+				}
+				String toEncode = res.getClientKey()+":"+res.getClientSecret();
+				String encodedString = Base64.encodeBytes(toEncode.getBytes());
+				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+				conn.setRequestMethod("GET");
+				conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+				conn.setRequestProperty("X-Experience-API-Version", "1.0.3");
+				conn.setRequestProperty("Authorization", "Basic " + encodedString);
+				conn.setRequestProperty("Cache-Control", "no-cache");
+				conn.setUseCaches(false);
+				BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+				String inputLine;
+				StringBuffer response = new StringBuffer();
+				while ((inputLine = in.readLine()) != null) {
+					response.append(inputLine);
+				}
+				in.close();
+				conn.disconnect();
+			
+				jsonBody = (JSONObject) p.parse(response.toString());
+				JSONArray statements = (JSONArray) jsonBody.get("statements");
+				// Check statements with matching actor
+				// 12 Values as 12 assignments right?
+				int[] assignments = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+				for (Object index : statements) {
+					JSONObject jsonIndex = (JSONObject) index;
+					JSONObject actor = (JSONObject) jsonIndex.get("actor");
+					JSONObject verb = (JSONObject) jsonIndex.get("verb");
+					JSONObject account = (JSONObject) actor.get("account");
+					if (account.get("name").toString().equals(user)
+							|| account.get("name").toString().equals(user)) {
+							System.out.println("name check passed");
+						// JSONObject object = (JSONObject) jsonIndex.get("object");
+						JSONObject context = (JSONObject) jsonIndex.get("context");
+						// JSONObject definition = (JSONObject) object.get("definition");
+						JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
+						// check if its not a delete statement
+						if (extensions.get(service.xapiUrl + "/definitions/mwb/extensions/context/activity_data") != null && verb.get("id").toString().contains("sent")) {
+							JSONObject fileDetails = (JSONObject) extensions
+									.get(service.xapiUrl + "/definitions/mwb/extensions/context/activity_data");
+							if (fileDetails.get("taskNr") != null) {
+								String assignmentName = fileDetails.get("taskNr").toString();
+								// JSONObject name = (JSONObject) definition.get("name");
+								// String assignmentName = name.getAsString("en-US");
+								try {
+									// int assignmentNumber = Integer.valueOf(assignmentName.split("t")[1]);
+									int assignmentNumber = Integer.valueOf(assignmentName);
+									assignments[assignmentNumber - 1]++;
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+								// System.out.println("Extracted actor is " + name.getAsString("en-US"));
+							}
+						}
+					}
+				}
+					String msg = "";
+					int credits = 0;
+					for (int i = 0; i < 12; i++) {
+						String number;
+						if (i < 9) {
+							number = "0" + String.valueOf(i + 1);
+						} else {
+							number = String.valueOf(i + 1);
+						}
+						if (assignments[i] > 0) {
+							credits++;
+						}
+						System.out.println("20");
+						msg += "Schreibaufgabe " + number + ": " + String.valueOf(assignments[i]) + "<br>";
+					}
+					// How are the credits calculated?
+					msg += "Das hei\u00DFt, du hast bisher *" + credits * 2 + "* Leistunsprozente gesammelt. ";
+					jsonBody = new JSONObject();
+					jsonBody.put("text", msg);
+			} catch (Exception e){
+				e.printStackTrace();
+			}		
+			return Response.ok().entity(jsonBody.toString()).build();
+		}
+	}
+
+	private static String convertInputStreamToBase64(InputStream inputStream) throws IOException {
+		byte[] bytes = inputStream.readAllBytes();
+		return Base64.encodeBytes(bytes);
+	}
+
+	private ObjectId storeFile(String filename, byte[] bytesToStore) {
+		CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
+		CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
+		MongoClientSettings settings = MongoClientSettings.builder()
+				.uuidRepresentation(UuidRepresentation.STANDARD)
+				.applyConnectionString(new ConnectionString(mongoUri))
+				.codecRegistry(codecRegistry)
+				.build();
+		// Create a new client and connect to the server
+		MongoClient mongoClient = MongoClients.create(settings);
+		ObjectId fileId = null;
+		try {
+			MongoDatabase database = mongoClient.getDatabase(mongoDB);
+			GridFSBucket gridFSBucket = GridFSBuckets.create(database, "files");
+			ByteArrayInputStream inputStream = new ByteArrayInputStream(bytesToStore);
+			fileId = gridFSBucket.uploadFromStream(filename, inputStream);
+			System.out.println("File uploaded successfully with ID: " + fileId.toString());
+			try {
+				inputStream.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} catch (MongoException me) {
+			System.err.println(me);
+		} finally {
+			// Close MongoDB client
+			mongoClient.close();
+		}
+		return fileId;
+	}
+
+	private ObjectId storeLocalFileRemote(String fileName) {
+		return storeLocalFileRemote(fileName, null);
+	}
+
+	private ObjectId storeLocalFileRemote(String fileName, String renameFile) {
+		ObjectId fileId = null;
+		try {
+			byte[] pdfByte = Files.readAllBytes(
+					Paths.get("tmitocar/" + fileName));
+			if(fileName==null){
+				fileId = storeFile(fileName, pdfByte);
+			}else{
+				fileId = storeFile(renameFile, pdfByte);
+			}
+			Files.delete(Paths.get("tmitocar/" + fileName));
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.out.println("Failed storing PDF.");
+		}
+		return fileId;
+	}
+
+	private static String readTxtFile(String fileName) {
 		String text = "";
 		try {
 			text = new String(Files.readAllBytes(Paths.get(fileName)));
@@ -1622,7 +1855,23 @@ public class TmitocarService extends RESTService {
 		return text;
 	}
 
-	public String readPDFFile(String fileName) {
+	private String readDocXFile(String fileName) {
+		String parsedText = "";
+		File file = new File(fileName);
+		try {
+			FileInputStream inputStream = new FileInputStream(file);
+			XWPFDocument document = new XWPFDocument(inputStream);
+			XWPFWordExtractor extractor = new XWPFWordExtractor(document);
+			parsedText = extractor.getText();
+			inputStream.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return parsedText;
+	}
+
+	private String readPDFFile(String fileName) {
 		org.apache.pdfbox.pdfparser.PDFParser parser = null;
 		org.apache.pdfbox.pdmodel.PDDocument pdDoc = null;
 		org.apache.pdfbox.cos.COSDocument cosDoc = null;
@@ -1652,102 +1901,126 @@ public class TmitocarService extends RESTService {
 
 	}
 
-	public JSONObject createXAPIStatement(String userMail, String fileName, String assignmentTitle, String text,
-			String channel)
-			throws ParseException {
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		JSONObject actor = new JSONObject();
-		actor.put("objectType", "Agent");
-		JSONObject account = new JSONObject();
+	private String createFileName(String name, String type) {
+		if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
+			return name + ".txt";
+		} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
+			return name + ".pdf";
+		} else if (type.equalsIgnoreCase("application/vnd.openxmlformats-officedocument.wordprocessingml.document") || type.equalsIgnoreCase("docx")) {
+			return name + ".docx";
+		}
+		return name + "txt";
+	}
 
-		account.put("name", encryptThisString(userMail));
-		account.put("homePage", "https://chat.tech4comp.dbis.rwth-aachen.de");
-		actor.put("account", account);
-		String jsonModel = "";
+	private boolean storeFileLocally(String name, String text, String type) {
+		String textContent = "";
+		// problem here with the file name no? I mean if two threads do this, we will
+		// have one file overwriting the other?
+		String fileName = createFileName(name, type);
+		System.out.println("Write File");
+
+		File f = new File("tmitocar/texts/" + name + "/" + fileName);
 		try {
-			jsonModel = readTxtFile("tmitocar/texts/" + channel + "/text-modell.json");
-		} catch (Exception e) {
-			System.out.println("Json Model could not be fetched");
+			boolean b = f.getParentFile().mkdirs();
+			b = f.createNewFile();
+
+			if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
+				/*
+				 * FileWriter writer = new FileWriter(f);
+				 * writer.write(body.getText().toLowerCase()); writer.close();
+				 */
+				byte[] decodedBytes = Base64.decode(text);
+				System.out.println(decodedBytes);
+				FileUtils.writeByteArrayToFile(f, decodedBytes);
+				textContent = readTxtFile("tmitocar/texts/" + name + "/" + fileName);
+			} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
+				byte[] decodedBytes = Base64.decode(text);
+				System.out.println(decodedBytes);
+				FileUtils.writeByteArrayToFile(f, decodedBytes);
+				textContent = readPDFFile("tmitocar/texts/" + name + "/" + fileName);
+			} else if (type.equalsIgnoreCase("application/vnd.openxmlformats-officedocument.wordprocessingml.document") || type.equalsIgnoreCase("docx")) {
+				byte[] decodedBytes = Base64.decode(text);
+				FileUtils.writeByteArrayToFile(f, decodedBytes);
+				textContent = readDocXFile("tmitocar/texts/" + name + "/" + fileName);
+			} else {
+				System.out.println("wrong type");
+				throw new IOException();
+			}
+			// spaces are not counted
+			if (textContent.replaceAll("\\s", "").length() < 350) {
+				System.out.println("not enough words");
+				throw new IOException();
+			}
+			userTexts.put(name, textContent);
+
+		} catch (IOException e) {
+			System.out.println("An error occurred: " + e.getMessage());
 			e.printStackTrace();
-			jsonModel = "No Json Model available";
+			isActive.put(name, false);
+			Thread.currentThread().interrupt();
+			return false;
 		}
-		System.out.println(JSONValue.escape(text.replaceAll("[^\\x00-\\x7F]", "")));
-		JSONObject verb = (JSONObject) p
-				.parse(new String("{'display':{'en-US':'sent_file'},'id':'https://tech4comp.de/xapi/verb/sent_file'}"));
-		JSONObject object = (JSONObject) p
-				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + fileName
-						+ "'}, 'description':{'en-US':'" + fileName
-						+ "'}, 'type':'https://tech4comp.de/xapi/activitytype/file'},'id':'https://tech4comp.de/biwi5/file/"
-						+ encryptThisString(userMail) + assignmentTitle + "', 'objectType':'Activity'}"));
-		JSONObject context = (JSONObject) p.parse(new String(
-				"{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'assignmentNumber':'"
-						+ assignmentTitle + "','text':'"
-						+ JSONValue.escape(text.replaceAll("[^\\x00-\\x7F]", "")).toString()
-								.replaceAll("\\P{ASCII}", "").replace("'", "\\'")
-						+ "','jsonModel':'" + jsonModel + "'}}}"));
-		JSONObject xAPI = new JSONObject();
-
-		xAPI.put("authority", p.parse(
-				new String("{'objectType': 'Agent','name': 'New Client', 'mbox': 'mailto:hello@learninglocker.net'}")));
-		xAPI.put("context", context); //
-		// xAPI.put("timestamp", java.time.LocalDateTime.now());
-		xAPI.put("actor", actor);
-		xAPI.put("object", object);
-		xAPI.put("verb", verb);
-		System.out.println(xAPI);
-		return xAPI;
+		return true;
 	}
 
-	// same as before but also stores the bytes of the generated file
-	public JSONObject createXAPIStatement2(String userMail, String assignmentTitle, String text, String feedbackBody,
-			String analysisType) throws ParseException {
-		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-		JSONObject actor = new JSONObject();
-		actor.put("objectType", "Agent");
-		JSONObject account = new JSONObject();
-
-		account.put("name", encryptThisString(userMail));
-		account.put("homePage", "https://chat.tech4comp.dbis.rwth-aachen.de");
-		actor.put("account", account);
-		JSONObject verb = (JSONObject) p
-				.parse(new String("{'display':{'en-US':'sent_file'},'id':'https://tech4comp.de/xapi/verb/sent_file'}"));
-		JSONObject object = (JSONObject) p
-				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + assignmentTitle
-						+ "'}, 'description':{'en-US':'" + assignmentTitle
-						+ "'}, 'type':'https://tech4comp.de/xapi/activitytype/file'},'id':'https://tech4comp.de/dresden/file/"
-						+ encryptThisString(userMail) + assignmentTitle + "', 'objectType':'Activity'}"));
-		JSONObject context = new JSONObject();
-		if (analysisType.equals("compareToSample")) {
-			context = (JSONObject) p.parse(
-					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'"
-							+ text + "', 'analysisType':'compareToSample','assignmentNumber':'1'}}}"));
-		} else if (analysisType.equals("singleAnalysis")) {
-			context = (JSONObject) p.parse(
-					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text':'"
-							+ text + "', 'analysisType':'singleAnalysis'}}}"));
-		} else {
-			// Bad practice here: decided to simply put the first compare text into the
-			// analysisType parameter
-			context = (JSONObject) p.parse(
-					new String("{'extensions':{'https://tech4comp.de/xapi/context/extensions/filecontent':{'text1':'"
-							+ analysisType + "','text2':'" + text + "','name1':'" + userCompareName.get(userMail)
-							+ "','name2':'" + assignmentTitle + "', 'analysisType':'compareTwoTexts'}}}"));
+	private void deleteFileLocally(String name) {
+		// or should we delete the user folder afterwards?
+		try {
+			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name + ".txt"));
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
-		JSONObject xAPI = new JSONObject();
-
-		xAPI.put("authority", p.parse(
-				new String("{'objectType': 'Agent','name': 'New Client', 'mbox': 'mailto:hello@learninglocker.net'}")));
-		xAPI.put("context", context); //
-		// xAPI.put("timestamp", java.time.LocalDateTime.now());
-		xAPI.put("actor", actor);
-		xAPI.put("object", object);
-		xAPI.put("verb", verb);
-		// System.out.println(xAPI);
-		return xAPI;
+		try {
+			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name + ".pdf"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		try {
+			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name + ".docx"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
-	// wrote method in case I dont manage to fix learning locker problem...
-	public void sendXAPIStatement(JSONObject xAPI, String lrsAuthToken) {
+	private void cleanJSONFile(String path){
+		String[] attributesToKeep = {"Graph1Liste", "BegriffeSchnittmenge", "BegriffeDiffB"};
+		try {
+            // Read the JSON file
+            BufferedReader reader = new BufferedReader(new FileReader(path));
+            StringBuilder jsonString = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                jsonString.append(line);
+            }
+            reader.close();
+
+            // Parse the JSON
+			JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
+            JSONObject json = (JSONObject) parser.parse(jsonString.toString());
+
+            // Create a new JSON object for cleaned version
+            JSONObject cleanedJson = new JSONObject();
+
+            // Extract specific attributes
+            for (String attribute : attributesToKeep) {
+                if (json.containsKey(attribute)) {
+                    cleanedJson.put(attribute, json.get(attribute));
+                }
+            }
+
+            // Write cleaned JSON to file
+            FileWriter writer = new FileWriter(path);
+            writer.write(cleanedJson.toString());
+            writer.close();
+
+            System.out.println("Cleaned JSON file created successfully.");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+	}
+
+	private void sendXAPIStatement(JSONObject xAPI, String lrsAuthToken) {
 		// Copy pasted from LL service
 		// POST statements
 		try {
@@ -1774,6 +2047,7 @@ public class TmitocarService extends RESTService {
 				response.append(line);
 			}
 			logger.info(response.toString());
+			System.out.println("XAPI Statement sent.");
 
 			conn.disconnect();
 		} catch (MalformedURLException e) {
@@ -1784,18 +2058,122 @@ public class TmitocarService extends RESTService {
 
 	}
 
-	private static String[][] UMLAUT_REPLACEMENTS = { { new String("Ä"), "Ae" }, { new String("Ü"), "Ue" },
-			{ new String("Ö"), "Oe" }, { new String("ä"), "ae" }, { new String("ü"), "ue" }, { new String("ö"), "oe" },
-			{ new String("ß"), "ss" } };
+	private String getTaskNameByIds(int course, int task){
+		String res = null;
+		try (Connection conn = getConnection();
+			PreparedStatement pstmt = conn.prepareStatement("SELECT title FROM writingtask WHERE courseid = ? AND nr = ?")) {
 
-	public static String replaceUmlaute(String orig) {
-		String result = orig;
+			// Set the email parameter in the prepared statement
+			pstmt.setInt(1, course);
+			pstmt.setInt(2, task);
 
-		for (int i = 0; i < UMLAUT_REPLACEMENTS.length; i++) {
-			result = result.replace(UMLAUT_REPLACEMENTS[i][0], UMLAUT_REPLACEMENTS[i][1]);
+			// Execute the query and retrieve the result set
+			try (ResultSet rs = pstmt.executeQuery()) {
+
+				// If the email exists in the table, the result set will contain one row with the UUID
+				if (rs.next()) {
+					res = rs.getString("title");
+				} else {
+					System.out.println("No task found for " + course + ":"+task);
+				}
+			}
+		} catch (SQLException e) {
+			// Handle any SQL errors
+			e.printStackTrace();
 		}
+		return res;
+	}
 
-		return result;
+	private String getUuidByEmail(String email){
+		String res = null;
+		try (Connection conn = getConnection();
+			PreparedStatement pstmt = conn.prepareStatement("SELECT pm.uuid FROM personmapping pm JOIN person p ON pm.personid = p.id WHERE p.email = ?")) {
+
+			// Set the email parameter in the prepared statement
+			pstmt.setString(1, email);
+
+			// Execute the query and retrieve the result set
+			try (ResultSet rs = pstmt.executeQuery()) {
+
+				// If the email exists in the table, the result set will contain one row with the UUID
+				if (rs.next()) {
+					res = rs.getString("uuid");
+				} else {
+					System.out.println("No UUID found for " + email);
+				}
+			}
+		} catch (SQLException e) {
+			// Handle any SQL errors
+			e.printStackTrace();
+		}
+		return res;
+	}
+
+	private LrsCredentials getLrsCredentialsByCourse(int courseId){
+		LrsCredentials res = null;
+		try (Connection conn = getConnection();
+			PreparedStatement pstmt = conn.prepareStatement("SELECT clientkey,clientsecret FROM lrsstoreforcourse WHERE courseid = ?")) {
+
+			// Set the email parameter in the prepared statement
+			pstmt.setInt(1, courseId);
+
+			// Execute the query and retrieve the result set
+			try (ResultSet rs = pstmt.executeQuery()) {
+
+				// If the email exists in the table, the result set will contain one row with the UUID
+				if (rs.next()) {
+					String key = rs.getString("clientkey");
+					String secret = rs.getString("clientsecret");
+					res = new LrsCredentials(key, secret);
+				} else {
+					System.out.println("No lrs information found for course " + courseId);
+				}
+			}
+		} catch (SQLException e) {
+			// Handle any SQL errors
+			e.printStackTrace();
+		}
+		return res;
+	}
+
+	private JSONObject prepareXapiStatement(String user, String verbId, String topic, int course, int taskNr, String fileId, String fileId2, String source) throws ParseException{
+		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+		JSONObject actor = new JSONObject();
+		actor.put("objectType", "Agent");
+		JSONObject account = new JSONObject();
+		account.put("name", user);
+		account.put("homePage", xapiHomepage);
+		actor.put("account", account);
+		JSONObject verb = (JSONObject) p
+				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'" + xapiUrl + "/definitions/mwb/verb/" +verbId+"'}"));
+		JSONObject object = (JSONObject) p
+				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + topic
+						+ "'}, 'extensions':{'" + xapiUrl + "/definitions/mwb/object/course': {'id': " + course + "}}, 'description':{'en-US':'" + topic
+						+ "'}, 'type':'"+ xapiUrl + "/definitions/chat/activities/file'}, 'id':'" + xapiUrl + "/definitions/chat/activities/file/" + fileId + "','objectType':'Activity'}"));
+		JSONObject context = (JSONObject) p.parse(new String(
+				"{'extensions':{'" + xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'id':'"
+						+ fileId + "','topic':'"
+						+ topic
+						+ "','taskNr':" + taskNr + "}}}"));
+						if (fileId2!= null && source != null){
+							context = (JSONObject) p.parse(new String(
+				"{'extensions':{'"+ xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'graphfileId':'"
+						+ fileId + "','feedbackId':'"
+						+ fileId2 + "','source':'"
+						+ source + "','topic':'"
+						+ topic
+						+ "','taskNr':" + taskNr + "}}}"));
+						}
+		JSONObject xAPI = new JSONObject();
+
+		xAPI.put("authority", p.parse(
+				new String("{'objectType': 'Agent','name': 'New Client', 'mbox': 'mailto:hello@learninglocker.net'}")));
+		xAPI.put("context", context); //
+		// xAPI.put("timestamp", java.time.LocalDateTime.now());
+		xAPI.put("actor", actor);
+		xAPI.put("object", object);
+		xAPI.put("verb", verb);
+		return xAPI;
 	}
 
 }

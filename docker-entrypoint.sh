@@ -49,6 +49,20 @@ set_in_service_config lrsURL ${LRS_URL}
 set_in_service_config lrsAuthTokenLeipzig ${LRS_AUTH_TOKEN_LEIPZIG}
 set_in_service_config lrsAuthTokenDresden ${LRS_AUTH_TOKEN_DRESDEN}
 
+set_in_service_config mongoHost ${MONGO_HOST}
+set_in_service_config mongoDB ${MONGO_DB}
+set_in_service_config mongoUser ${MONGO_USER}
+set_in_service_config mongoPassword ${MONGO_PASSWORD}
+set_in_service_config mongoAuth ${MONGO_AUTH}
+
+set_in_service_config pgsqlHost ${PGSQL_HOST}
+set_in_service_config pgsqlPort ${PGSQL_PORT}
+set_in_service_config pgsqlUser ${PGSQL_USER}
+set_in_service_config pgsqlPassword ${PGSQL_PASSWORD}
+set_in_service_config pgsqlDB ${PGSQL_DB}
+
+set_in_service_config xapiUrl ${XAPI_URL}
+set_in_service_config xapiHomepage ${XAPI_HOMEPAGE}
 # prevent glob expansion in lib/*
 set -f
 LAUNCH_COMMAND='java -cp lib/* --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED i5.las2peer.tools.L2pNodeLauncher -s service -p '"${LAS2PEER_PORT} ${SERVICE_EXTRA_ARGS}"
