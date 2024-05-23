@@ -454,12 +454,18 @@ public class TmitocarService extends RESTService {
 					System.out.println("Upload text");
 					
 					try {
+						int basisId = 0;
+
 						conn = service.getConnection();
 						stmt = conn.prepareStatement("SELECT * FROM course WHERE id = ? ORDER BY id ASC");
 						stmt.setInt(1, courseId);
 						rs = stmt.executeQuery();
-						int basisId = rs.getInt("basecourseid");
-
+						while (rs.next()) {
+							basisId = rs.getInt("basecourseid");
+							System.out.println("BasecourseID is: " + basisId);
+						}
+						String taskNr = basisId + "-" + courseAndTask[1];
+						System.out.println("New taskNr is: " + taskNr);
 						// Store usertext with label
 						String wordspec = body.getWordSpec();
 						String fileName = createFileName(label1, body.getType());
@@ -484,7 +490,7 @@ public class TmitocarService extends RESTService {
 							newText.put("studentInput", userTexts.get(label1));
 						}
 						
-						newText.put("taskNr", basisId+"-"+courseAndTask[1]);
+						newText.put("taskNr", taskNr);
 						newText.put("timestamp", System.currentTimeMillis());
 						System.out.println("New Text is:" + newText);
 
