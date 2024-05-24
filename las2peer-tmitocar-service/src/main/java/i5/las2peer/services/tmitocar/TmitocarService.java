@@ -430,7 +430,6 @@ public class TmitocarService extends RESTService {
 		System.out.println("Block " + label1);
 		JSONObject error = new JSONObject();
 		JSONObject newText = new JSONObject();
-
 		CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
 		CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
 		MongoClientSettings settings = MongoClientSettings.builder()
@@ -446,40 +445,27 @@ public class TmitocarService extends RESTService {
 				@Override
 				public void run() {
 					String[] courseAndTask = label2.split("-");
-					int basisId = 0;
 					int courseId = Integer.parseInt(courseAndTask[0]);
 					Connection conn = null;
 					PreparedStatement stmt = null;
 					ResultSet rs = null;
 
-					try {
-						conn = service.getConnection();
-						stmt = conn.prepareStatement("SELECT * FROM course WHERE id = ? ORDER BY id ASC");
-						stmt.setInt(1, courseId);
-						rs = stmt.executeQuery();
-						basisId = rs.getInt("basecourseid");
-					} catch (SQLException e) {
-						e.printStackTrace();
-					} finally {
-						try {
-							if (rs != null) {
-								rs.close();
-							}
-							if (stmt != null) {
-								stmt.close();
-							}
-							if (conn != null) {
-								conn.close();
-							}
-						} catch (SQLException ex) {
-							System.out.println(ex.getMessage());
-						}
-					}
-
 					storeFileLocally(label1, body.getText(), body.getType());
 					System.out.println("Upload text");
 					
 					try {
+						int basisId = 0;
+
+						conn = service.getConnection();
+						stmt = conn.prepareStatement("SELECT * FROM course WHERE id = ? ORDER BY id ASC");
+						stmt.setInt(1, courseId);
+						rs = stmt.executeQuery();
+						while (rs.next()) {
+							basisId = rs.getInt("basecourseid");
+							System.out.println("BasecourseID is: " + basisId);
+						}
+						String taskNr = basisId + "-" + courseAndTask[1];
+						System.out.println("New taskNr is: " + taskNr);
 						// Store usertext with label
 						String wordspec = body.getWordSpec();
 						String fileName = createFileName(label1, body.getType());
@@ -504,7 +490,7 @@ public class TmitocarService extends RESTService {
 							newText.put("studentInput", userTexts.get(label1));
 						}
 						
-						newText.put("taskNr", basisId+"-"+courseAndTask[1]);
+						newText.put("taskNr", taskNr);
 						newText.put("timestamp", System.currentTimeMillis());
 						System.out.println("New Text is:" + newText);
 
@@ -608,14 +594,29 @@ public class TmitocarService extends RESTService {
 						isActive.put(label1, false);
 						error.put("error", e.toString());
 						callBack(callbackUrl, label1, label1, label2, error);
-					}
-					catch (Exception e) {
+					} catch (SQLException e) {
+						e.printStackTrace();
+					} catch (Exception e) {
 						e.printStackTrace();
 						isActive.put(label1, false);
 						error.put("error", e.toString());
 						callBack(callbackUrl, label1, label1, label2, error);
+					} finally {
+						try {
+							if (rs != null) {
+								rs.close();
+							}
+							if (stmt != null) {
+								stmt.close();
+							}
+							if (conn != null) {
+								conn.close();
+							}
+						} catch (SQLException ex) {
+							System.out.println(ex.getMessage());
+						}
 					}
-				}
+				} 
 			}).start();
 			return true;
 		} catch (Exception e) {
