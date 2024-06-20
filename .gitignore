@@ -29,5 +29,10 @@ las2peer-tmitocar-service/.project
 las2peer-tmitocar-service/export/jars/*.jar
 las2peer-tmitocar-service/.classpath
 las2peer-tmitocar-service/.settings/org.eclipse.jdt.core.prefs
+tmitocar-service/.project
+tmitocar-service/export/jars/*.jar
+tmitocar-service/.classpath
+tmitocar-service/.settings/org.eclipse.jdt.core.prefs
 .vscode/settings.json
 .project
+tmitocar-service/src/main/resource/*.properties
