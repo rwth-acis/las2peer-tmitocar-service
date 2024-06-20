@@ -7,7 +7,7 @@
  * in the user manual at https://docs.gradle.org/6.6.1/userguide/multi_project_builds.html
  */
 
-rootProject.name = 'las2peer-tmitocar-service'
-include('las2peer-tmitocar-service')
+rootProject.name = 'tmitocar-service'
+include('tmitocar-service')
 
 

@@ -40,5 +40,4 @@ RUN dos2unix /src/gradle.properties
 RUN dos2unix gradlew
 RUN chmod +x gradlew && ./gradlew build --exclude-task test
 
-EXPOSE $LAS2PEER_PORT
 ENTRYPOINT ["/src/docker-entrypoint.sh"]
