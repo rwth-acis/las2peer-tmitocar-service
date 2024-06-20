@@ -1,4 +1,4 @@
-package i5.las2peer.services.tmitocar.pojo;
+package services.tmitocar.pojo;
 
 public class LrsCredentials {
     private String clientKey;

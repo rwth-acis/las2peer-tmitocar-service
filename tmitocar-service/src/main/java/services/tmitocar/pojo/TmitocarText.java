@@ -1,4 +1,4 @@
-package i5.las2peer.services.tmitocar.pojo;
+package services.tmitocar.pojo;
 
 /**
  * This class represents metadata that is used for T-MITOCAR, such as the text's

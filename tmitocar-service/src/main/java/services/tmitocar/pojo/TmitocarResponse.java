@@ -1,4 +1,4 @@
-package i5.las2peer.services.tmitocar.pojo;
+package services.tmitocar.pojo;
 
 /**
  * This class represents the response returned by our TMitocar Wrapper service after processing a request.
