@@ -1742,7 +1742,7 @@ public class TmitocarService extends RESTService {
 						// JSONObject definition = (JSONObject) object.get("definition");
 						JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
 						// check if its not a delete statement
-						if (extensions.get(service.xapiUrl + "/definitions/mwb/extensions/context/activity_data") != null && verb.get("id").toString().contains("sent")) {
+						if (extensions.get(service.xapiUrl + "/definitions/mwb/extensions/context/activity_data") != null && verb.get("id").toString().contains("uploaded_task")) {
 							JSONObject fileDetails = (JSONObject) extensions
 									.get(service.xapiUrl + "/definitions/mwb/extensions/context/activity_data");
 							if (fileDetails.get("taskNr") != null) {
