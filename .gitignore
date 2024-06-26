@@ -36,3 +36,4 @@ tmitocar-service/.settings/org.eclipse.jdt.core.prefs
 .vscode/settings.json
 .project
 tmitocar-service/src/main/resource/*.properties
+application.properties
