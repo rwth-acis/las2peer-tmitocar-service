@@ -1,8 +1,5 @@
 package services.tmitocar.service;
 
-import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
-import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -26,15 +23,13 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
-import javax.ws.rs.DefaultValue;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
@@ -42,58 +37,42 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 
-import java.net.HttpURLConnection;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-
-import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.io.FileUtils;
 import org.apache.pdfbox.pdfparser.PDFParser;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.bson.BsonDocument;
-import org.bson.BsonInt64;
 import org.bson.BsonObjectId;
-import org.bson.Document;
-import org.bson.UuidRepresentation;
-import org.bson.codecs.configuration.CodecRegistry;
-import org.bson.codecs.pojo.PojoCodecProvider;
-import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
-import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
-import com.fasterxml.jackson.databind.JsonSerializable.Base;
-import com.mongodb.BasicDBObject;
-import com.mongodb.ConnectionString;
-import com.mongodb.DBObject;
-import com.mongodb.MongoClientSettings;
-// import com.mongodb.ConnectionString;
-// import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoException;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
-// import com.mongodb.client.MongoClient;
-// import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.gridfs.GridFSBucket;
+import com.mongodb.client.gridfs.GridFSBuckets;
 import com.mongodb.client.gridfs.model.GridFSFile;
-// import com.mongodb.client.model.Filters;
-import com.mongodb.client.gridfs.model.GridFSUploadOptions;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.mongodb.client.model.Filters;
+
+
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
+import services.tmitocar.model.Course;
+import services.tmitocar.model.CourseFAQ;
+import services.tmitocar.model.Person;
+import services.tmitocar.model.Personmapping;
 import services.tmitocar.model.TmitocarFiles;
 import services.tmitocar.model.WritingTask;
+import services.tmitocar.model.LrsStoreForCourse;
 import services.tmitocar.pojo.LrsCredentials;
 import services.tmitocar.pojo.TmitocarText;
-import services.tmitocar.repository.FilesRepository;
+import services.tmitocar.repository.CourseFAQRepository;
+import services.tmitocar.repository.CourseRepository;
+import services.tmitocar.repository.LrsStoreForCourseRepository;
+import services.tmitocar.repository.PersonMappingRepository;
+import services.tmitocar.repository.PersonRepository;
 import services.tmitocar.repository.WritingTaskRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -124,16 +103,39 @@ public class TmitocarService {
 	private WritingTaskRepository writingTaskRepository;
 
 	@Autowired
-	private GridFsTemplate gridFsTemplate;
+	private CourseFAQRepository courseFAQRepository;
+	
+	@Autowired
+	private CourseRepository courseRepository;
 
 	@Autowired
-	private GridFsOperations gridFsOperations;
+	private PersonRepository personRepository;
+
+	@Autowired
+	private PersonMappingRepository personMappingRepository;
+
+	@Autowired
+	private LrsStoreForCourseRepository lrsStoreForCourseRepository;
+
+	@Autowired
+	private GridFsTemplate gridFsTemplate;
+
 	
 	// This is the constructor of the TmitocarService class.
-	public TmitocarService(WritingTaskRepository repository) {
+	public TmitocarService(WritingTaskRepository repository, CourseFAQRepository courseFAQRepository, CourseRepository courseRepository, PersonRepository personRepository, PersonMappingRepository personMappingRepository, LrsStoreForCourseRepository lrsStoreForCourseRepository) {
 		
 		// Set postgresql connection for WritingTasks
 		this.writingTaskRepository = repository;
+		// Set postgresql connection for CourseFAQs
+		this.courseFAQRepository = courseFAQRepository;
+		// Set postgresql connection for Courses
+		this.courseRepository = courseRepository;
+		// Set postgresql connection for Persons
+		this.personRepository = personRepository;
+		// Set postgresql connection for PersonMappings
+		this.personMappingRepository = personMappingRepository;
+		// Set postgresql connection for LrsStoreForCourses
+		this.lrsStoreForCourseRepository = lrsStoreForCourseRepository;
 
 		// Call the setFieldValues() method to initialize some fields.
 		// setFieldValues();
@@ -217,6 +219,40 @@ public class TmitocarService {
 		return writingTaskRepository.findByCourseIdAndNr(courseId, nr);
 	}
 
+	public List<CourseFAQ> findFAQsByCourseId(int courseid) {
+		return courseFAQRepository.findFAQsByCourseId(courseid);
+	}
+	
+	public List<CourseFAQ> getCourseFAQs() {
+		return (List<CourseFAQ>) courseFAQRepository.findAll();
+	}
+
+	public List<CourseFAQ> findFAQsByCourseIdAndIntent(int courseid, String intent) {
+		return courseFAQRepository.findByCourseIdAndIntent(courseid, intent);
+	}
+
+	public List<CourseFAQ> findFAQsByIntent(String intent) {
+		return courseFAQRepository.findByIntent(intent);
+	}
+
+	public Course findCourseById(int id) {
+		return courseRepository.findCourseById(id);
+	}
+
+	public int findIdByEmail(String email) {
+		Person p = personRepository.findByEmail(email);
+		return p.getId();
+	}
+
+	public UUID findUuidByPersonId(int personid) {
+		Personmapping pm = personMappingRepository.findByPersonId(personid);
+		return pm.getUuid();
+	}
+
+	public LrsStoreForCourse getClientById(int courseId) {
+		return lrsStoreForCourseRepository.findById(courseId).get();
+	}
+
     public String convertInputStreamToBase64(InputStream inputStream) throws IOException {
 		Encoder e = Base64.getEncoder();
 		byte[] bytes = inputStream.readAllBytes();
@@ -226,8 +262,9 @@ public class TmitocarService {
 	public ObjectId storeFile(String filename, byte[] bytesToStore) {
 		ObjectId fileId = null;
 		try {
+			GridFSBucket gridFSBucket = GridFSBuckets.create(getMongoDatabase(), "files");
 			ByteArrayInputStream inputStream = new ByteArrayInputStream(bytesToStore);
-			fileId = gridFsTemplate.store(inputStream, filename);
+			fileId = gridFSBucket.uploadFromStream(filename, inputStream);
 			System.out.println("File uploaded successfully with ID: " + fileId.toString());
 			try {
 				inputStream.close();
@@ -581,217 +618,208 @@ public class TmitocarService {
 		}
 	}
 
-	// public boolean llm_feedback(@RequestParam("label1") String label1, @RequestParam("label2") String label2,
-	// 		@RequestParam("template") String template, TmitocarText body, String callbackUrl, String sourceFileId) {
-	// 	// TmitocarServiceController service = (TmitocarServiceController) Context.get().getService();
-	// 	isActive.put(label1, true);
-	// 	JSONObject j = new JSONObject();
-	// 	j.put("user", label1);
-	// 	// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
-	// 	System.out.println("Block " + label1);
-	// 	JSONObject error = new JSONObject();
-	// 	JSONObject newText = new JSONObject();
-	// 	CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
-	// 	CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
-	// 	MongoClientSettings settings = MongoClientSettings.builder()
-	// 			.uuidRepresentation(UuidRepresentation.STANDARD)
-	// 			.applyConnectionString(new ConnectionString(mongoUri))
-	// 			.codecRegistry(codecRegistry)
-	// 			.build();
-	// 	// Create a new client and connect to the server
-	// 	MongoClient mongoClient = MongoClients.create(settings);
+	public boolean llm_feedback(@RequestParam("label1") String label1, @RequestParam("label2") String label2,
+			@RequestParam("template") String template, TmitocarText body, String callbackUrl, String sourceFileId) {
+		// TmitocarServiceController service = (TmitocarServiceController) Context.get().getService();
+		isActive.put(label1, true);
+		JSONObject j = new JSONObject();
+		j.put("user", label1);
+		// Context.get().monitorEvent(MonitoringEvent.SERVICE_CUSTOM_MESSAGE_83, j.toJSONString());
+		System.out.println("Block " + label1);
+		JSONObject error = new JSONObject();
+		JSONObject newText = new JSONObject();
+		// CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
+		// CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
+		// MongoClientSettings settings = MongoClientSettings.builder()
+		// 		.uuidRepresentation(UuidRepresentation.STANDARD)
+		// 		.applyConnectionString(new ConnectionString(mongoUri))
+		// 		.codecRegistry(codecRegistry)
+		// 		.build();
+		// // Create a new client and connect to the server
+		// MongoClient mongoClient = MongoClients.create(settings);
 
-	// 	try {
-	// 		new Thread(new Runnable() {
-	// 			@Override
-	// 			public void run() {
-	// 				String[] courseAndTask = label2.split("-");
-	// 				int courseId = Integer.parseInt(courseAndTask[0]);
-	// 				Connection conn = null;
-	// 				PreparedStatement stmt = null;
-	// 				ResultSet rs = null;
+		try {
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					String[] courseAndTask = label2.split("-");
+					int courseId = Integer.parseInt(courseAndTask[0]);
+					Connection conn = null;
+					PreparedStatement stmt = null;
+					ResultSet rs = null;
 
-	// 				storeFileLocally(label1, body.getText(), body.getType());
-	// 				System.out.println("Upload text");
+					storeFileLocally(label1, body.getText(), body.getType());
+					System.out.println("Upload text");
 					
-	// 				try {
-	// 					int basisId = 0;
+					try {
+						int basisId = 0;
+						Course c = findCourseById(courseId);
+						if (c != null) {
+							basisId = c.getBaseCourseId();
+							System.out.println("BasecourseID is: " + basisId);
+						}
+						String taskNr = basisId + "-" + courseAndTask[1];
+						System.out.println("New taskNr is: " + taskNr);
+						// Store usertext with label
+						String wordspec = body.getWordSpec();
+						String fileName = createFileName(label1, body.getType());
+						uploadToTmitocar(label1, fileName, wordspec);
 
-	// 					conn = getConnection();
-	// 					stmt = conn.prepareStatement("SELECT * FROM course WHERE id = ? ORDER BY id ASC");
-	// 					stmt.setInt(1, courseId);
-	// 					rs = stmt.executeQuery();
-	// 					while (rs.next()) {
-	// 						basisId = rs.getInt("basecourseid");
-	// 						System.out.println("BasecourseID is: " + basisId);
-	// 					}
-	// 					String taskNr = basisId + "-" + courseAndTask[1];
-	// 					System.out.println("New taskNr is: " + taskNr);
-	// 					// Store usertext with label
-	// 					String wordspec = body.getWordSpec();
-	// 					String fileName = createFileName(label1, body.getType());
-	// 					uploadToTmitocar(label1, fileName, wordspec);
+						System.out.println("Compare with expert.");
+						// compare with expert text
+						createComparison(label1, label2);
 
-	// 					System.out.println("Compare with expert.");
-	// 					// compare with expert text
-	// 					createComparison(label1, label2);
+						System.out.println("Store graph to MongoDB...");
+						ObjectId graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
 
-	// 					System.out.println("Store graph to MongoDB...");
-	// 					ObjectId graphFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".json",body.getTopic()+"-graph.json");
+						newText.put("userId", label1);
 
-	// 					newText.put("userId", label1);
-
-	// 					File f = new File("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt");
-	// 					File f_send = new File("tmitocar/texts/" + label1 + "/"+ label1 + "-" + courseAndTask[1] + ".txt-cleaned.txt");
-	// 					if (f.exists()) {
-	// 						System.out.println("Get content from -cleaned.txt.");
-	// 						newText.put("studentInput", readTxtFile("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt"));
-	// 						f.renameTo(f_send);
-	// 					} else {
-	// 						newText.put("studentInput", userTexts.get(label1));
-	// 					}
+						File f = new File("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt");
+						File f_send = new File("tmitocar/texts/" + label1 + "/"+ label1 + "-" + courseAndTask[1] + ".txt-cleaned.txt");
+						if (f.exists()) {
+							System.out.println("Get content from -cleaned.txt.");
+							newText.put("studentInput", readTxtFile("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt"));
+							f.renameTo(f_send);
+						} else {
+							newText.put("studentInput", userTexts.get(label1));
+						}
 						
-	// 					newText.put("taskNr", taskNr);
-	// 					newText.put("timestamp", System.currentTimeMillis());
-	// 					System.out.println("New Text is:" + newText);
+						newText.put("taskNr", taskNr);
+						newText.put("timestamp", System.currentTimeMillis());
+						System.out.println("New Text is:" + newText);
 
-	// 					try {
-	// 						// get keywords from file 
-	// 						MongoDatabase database = mongoClient.getDatabase(mongoDB);
-	// 						GridFSBucket gridFSBucket = GridFSBuckets.create(database, "files");
-	// 						gridFSBucket.find(Filters.empty());
-	// 						BsonObjectId bId = new BsonObjectId(graphFileId);
-	// 						GridFSFile file = gridFSBucket.find(Filters.eq(bId)).first();
-	// 						if (file == null) {
-	// 							System.out.println("File with ID "+graphFileId+" not found");
-	// 						}
-	// 						// TODO
-	// 						// HttpResponse<String> response = ResponseEntity.ok(file.getObjectId().toHexString());
-	// 						// response.header("Content-Disposition", "attachment; filename=\"" + file.getFilename() + "\"");
-	// 						HttpHeaders headers = new HttpHeaders();
-    //    						headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
+						try {
+							// get keywords from file 
+							GridFSBucket gridFSBucket = GridFSBuckets.create(getMongoDatabase(), "files");
+							gridFSBucket.find(Filters.empty());
+							BsonObjectId bId = new BsonObjectId(graphFileId);
+							GridFSFile file = gridFSBucket.find(Filters.eq(bId)).first();
+							if (file == null) {
+								System.out.println("File with ID "+graphFileId+" not found");
+							}
+							// TODO
+							// HttpResponse<String> response = ResponseEntity.ok(file.getObjectId().toHexString());
+							// response.header("Content-Disposition", "attachment; filename=\"" + file.getFilename() + "\"");
+							HttpHeaders headers = new HttpHeaders();
+       						headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
 
-	// 						// Download the file to a ByteArrayOutputStream
-	// 						ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	// 						gridFSBucket.downloadToStream(file.getObjectId(), baos);
-	// 						String jsonStr = baos.toString();
-	// 						JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
-	// 						JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
-	// 						JSONArray begriffeDiffB = (JSONArray) jsonObject.get("BegriffeDiffB");
-	// 						newText.put("keywords", begriffeDiffB);							
-	// 					} catch (MongoException me) {
-	// 						System.err.println(me);
-	// 					} finally {
-	// 						mongoClient.close();
-	// 					}
+							// Download the file to a ByteArrayOutputStream
+							ByteArrayOutputStream baos = new ByteArrayOutputStream();
+							gridFSBucket.downloadToStream(file.getObjectId(), baos);
+							String jsonStr = baos.toString();
+							JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
+							JSONObject jsonObject = (JSONObject) parser.parse(jsonStr);
+							JSONArray begriffeDiffB = (JSONArray) jsonObject.get("BegriffeDiffB");
+							newText.put("keywords", begriffeDiffB);							
+						} catch (MongoException me) {
+							System.err.println(me);
+						} 
 
-	// 					System.out.println("Get llm-generated feedback and store as markdown.");
-	// 					//get LLM-generated feedback
-	// 					String url = "http://16.171.64.118:8000/input/recommend";
-	// 					HttpClient httpClient = HttpClient.newHttpClient();
-	// 					HttpRequest httpRequest = HttpRequest.newBuilder()
-	// 							.uri(UriBuilder.fromUri(url).build())
-	// 							.header("Content-Type", "application/json")
-	// 							.POST(HttpRequest.BodyPublishers.ofString(newText.toJSONString()))
-	// 							.build();
+						System.out.println("Get llm-generated feedback and store as markdown.");
+						//get LLM-generated feedback
+						String url = "http://16.171.64.118:8000/input/recommend";
+						HttpClient httpClient = HttpClient.newHttpClient();
+						HttpRequest httpRequest = HttpRequest.newBuilder()
+								.uri(UriBuilder.fromUri(url).build())
+								.header("Content-Type", "application/json")
+								.POST(HttpRequest.BodyPublishers.ofString(newText.toJSONString()))
+								.build();
 
-	// 					// Send the request
-	// 					HttpResponse<String> serviceResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-	// 					System.out.println("Response Code:" + serviceResponse.statusCode());
-	// 					System.out.println("Response Text" + serviceResponse.body());
-	// 					JSONParser parser = new JSONParser();
-	// 					JSONObject responseBody = (JSONObject) parser.parse(serviceResponse.body());
+						// Send the request
+						HttpResponse<String> serviceResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+						System.out.println("Response Code:" + serviceResponse.statusCode());
+						System.out.println("Response Text" + serviceResponse.body());
+						JSONParser parser = new JSONParser();
+						JSONObject responseBody = (JSONObject) parser.parse(serviceResponse.body());
 						
-	// 					String r = responseBody.get("response").toString();
-	// 					String pattern = "\n(?!\\n)";
-	// 					String r_new = r.replaceAll(pattern, "\n\n");
+						String r = responseBody.get("response").toString();
+						String pattern = "\n(?!\\n)";
+						String r_new = r.replaceAll(pattern, "\n\n");
 
-	// 					System.out.println("Write response to markdown.");
-	// 					//store response as markdown
-	// 					FileWriter writer = new FileWriter("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md");
-	// 					writer.write(r_new);
-	// 					writer.close();
+						System.out.println("Write response to markdown.");
+						//store response as markdown
+						FileWriter writer = new FileWriter("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md");
+						writer.write(r_new);
+						writer.close();
 
-	// 					System.out.println("Convert markdown to pdf.");
-	// 					// store markdown as pdf
-	// 					ProcessBuilder pb = new ProcessBuilder("pandoc", "comparison_" + label1 + "_vs_" + label2 + ".md" , "-o", "comparison_" + label1 + "_vs_" + label2 + ".pdf","--wrap=preserve");
-	// 					pb.inheritIO();
-	// 					pb.directory(new File("tmitocar"));
-	// 					Process process2 = pb.start();
-	// 					process2.waitFor();
-	// 					Files.delete(Paths.get("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md"));
+						System.out.println("Convert markdown to pdf.");
+						// store markdown as pdf
+						ProcessBuilder pb = new ProcessBuilder("pandoc", "comparison_" + label1 + "_vs_" + label2 + ".md" , "-o", "comparison_" + label1 + "_vs_" + label2 + ".pdf","--wrap=preserve");
+						pb.inheritIO();
+						pb.directory(new File("tmitocar"));
+						Process process2 = pb.start();
+						process2.waitFor();
+						Files.delete(Paths.get("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md"));
 
-	// 					System.out.println("Storing PDF to mongodb...");
-	// 					ObjectId feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf" ,body.getTopic()+"-feedback.pdf");
+						System.out.println("Storing PDF to mongodb...");
+						ObjectId feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf" ,body.getTopic()+"-feedback.pdf");
 
-	// 					String uuid = getUuidByEmail(body.getUuid());
-	// 						if (uuid!=null){
-	// 							// user has accepted
-	// 						LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
-	// 						if(lrsCredentials!=null){
-    //                             Encoder e = Base64.getEncoder();
-	// 							JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
-	// 							String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
-	// 							String encodedString = e.encodeToString(toEncode.getBytes());
-	// 							sendXAPIStatement(xapi, encodedString);
-	// 						}
-	// 					}
+						// String uuid = getUuidByEmail(body.getUuid());
+						// 	if (uuid!=null){
+						// 		// user has accepted
+						// 	LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
+						// 	if(lrsCredentials!=null){
+                        //         Encoder e = Base64.getEncoder();
+						// 		JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
+						// 		String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
+						// 		String encodedString = e.encodeToString(toEncode.getBytes());
+						// 		sendXAPIStatement(xapi, encodedString);
+						// 	}
+						// }
 
-	// 					JSONObject steve = new JSONObject();
-	// 					// example, should be replaced with actual stuff
-	// 					steve.put("graphFileId", graphFileId.toString());
-	// 					steve.put("feedbackFileId", feedbackFileId.toString());
-	// 					callBack(callbackUrl, label1, label1, label2, steve);
+						JSONObject steve = new JSONObject();
+						// example, should be replaced with actual stuff
+						steve.put("graphFileId", graphFileId.toString());
+						steve.put("feedbackFileId", feedbackFileId.toString());
+						callBack(callbackUrl, label1, label1, label2, steve);
 
-	// 					isActive.put(label1, false);
-	// 				} catch (IOException e) {
-	// 					e.printStackTrace();
-	// 					isActive.put(label1, false);
-	// 					error.put("error", e.toString());
-	// 					callBack(callbackUrl, label1, label1, label2, error);
-	// 				} catch (InterruptedException e) {
-	// 					e.printStackTrace();
-	// 					isActive.put(label1, false);
-	// 					error.put("error", e.toString());
-	// 					callBack(callbackUrl, label1, label1, label2, error);
-	// 				} catch (ParseException e) {
-	// 					e.printStackTrace();
-	// 					isActive.put(label1, false);
-	// 					error.put("error", e.toString());
-	// 					callBack(callbackUrl, label1, label1, label2, error);
-	// 				} catch (SQLException e) {
-	// 					e.printStackTrace();
-	// 				} catch (Exception e) {
-	// 					e.printStackTrace();
-	// 					isActive.put(label1, false);
-	// 					error.put("error", e.toString());
-	// 					callBack(callbackUrl, label1, label1, label2, error);
-	// 				} finally {
-	// 					try {
-	// 						if (rs != null) {
-	// 							rs.close();
-	// 						}
-	// 						if (stmt != null) {
-	// 							stmt.close();
-	// 						}
-	// 						if (conn != null) {
-	// 							conn.close();
-	// 						}
-	// 					} catch (SQLException ex) {
-	// 						System.out.println(ex.getMessage());
-	// 					}
-	// 				}
-	// 			} 
-	// 		}).start();
-	// 		return true;
-	// 	} catch (Exception e) {
-	// 		e.printStackTrace();
-	// 		isActive.put(label1, false);
-	// 		error.put("error", e.toString());
-	// 		callBack(callbackUrl, label1, label1, label2, error);
-	// 		return false;
-	// 	}
-	// }
+						isActive.put(label1, false);
+					} catch (IOException e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					} catch (ParseException e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					} catch (Exception e) {
+						e.printStackTrace();
+						isActive.put(label1, false);
+						error.put("error", e.toString());
+						callBack(callbackUrl, label1, label1, label2, error);
+					} finally {
+						try {
+							if (rs != null) {
+								rs.close();
+							}
+							if (stmt != null) {
+								stmt.close();
+							}
+							if (conn != null) {
+								conn.close();
+							}
+						} catch (SQLException ex) {
+							System.out.println(ex.getMessage());
+						}
+					}
+				} 
+			}).start();
+			return true;
+		} catch (Exception e) {
+			e.printStackTrace();
+			isActive.put(label1, false);
+			error.put("error", e.toString());
+			callBack(callbackUrl, label1, label1, label2, error);
+			return false;
+		}
+	}
 
 	public ResponseEntity<String> processSingleText(String user, String expert, String template, TmitocarText body) {
 		isActive.put(user, true);
@@ -981,96 +1009,80 @@ public class TmitocarService {
 		return res;
 	}
 
-	// public String getUuidByEmail(String email){
-	// 	String res = null;
-	// 	try (Connection conn = getConnection();
-	// 		PreparedStatement pstmt = conn.prepareStatement("SELECT pm.uuid FROM personmapping pm JOIN person p ON pm.personid = p.id WHERE p.email = ?")) {
+	public String getUuidByEmail(String email){
+		UUID uuid = null;
+		try {
+			int personid = findIdByEmail(email);
+			uuid = findUuidByPersonId(personid);
+			
+			// If the email exists in the table, the result set will contain one row with the UUID
+			if (uuid == null) {
+				System.out.println("No UUID found for " + email);
+			}
+			
+		} catch (Exception e) {
+			// Handle any SQL errors
+			e.printStackTrace();
+		}
+		return uuid.toString();
+	}
 
-	// 		// Set the email parameter in the prepared statement
-	// 		pstmt.setString(1, email);
+	public LrsCredentials getLrsCredentialsByCourse(int courseId){
+		LrsCredentials res = null;
+		LrsStoreForCourse lrsStore = null;
+		try {
+			lrsStore = getClientById(courseId);
+			if (lrsStore != null) {
+					String key = lrsStore.getClientkey();
+					String secret = lrsStore.getClientsecret();
+					res = new LrsCredentials(key, secret);
+				} else {
+					System.out.println("No lrs information found for course " + courseId);
+				}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return res;
+	}
 
-	// 		// Execute the query and retrieve the result set
-	// 		try (ResultSet rs = pstmt.executeQuery()) {
+	public JSONObject prepareXapiStatement(String user, String verbId, String topic, int course, int taskNr, String fileId, String fileId2, String source) throws ParseException{
+		JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
+		JSONObject actor = new JSONObject();
+		actor.put("objectType", "Agent");
+		JSONObject account = new JSONObject();
+		account.put("name", user);
+		account.put("homePage", xapiHomepage);
+		actor.put("account", account);
+		JSONObject verb = (JSONObject) p
+				.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'" + xapiUrl + "/definitions/mwb/verb/" +verbId+"'}"));
+		JSONObject object = (JSONObject) p
+				.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + topic
+						+ "'}, 'extensions':{'" + xapiUrl + "/definitions/mwb/object/course': {'id': " + course + "}}, 'description':{'en-US':'" + topic
+						+ "'}, 'type':'"+ xapiUrl + "/definitions/chat/activities/file'}, 'id':'" + xapiUrl + "/definitions/chat/activities/file/" + fileId + "','objectType':'Activity'}"));
+		JSONObject context = (JSONObject) p.parse(new String(
+				"{'extensions':{'" + xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'id':'"
+						+ fileId + "','topic':'"
+						+ topic
+						+ "','taskNr':" + taskNr + "}}}"));
+						if (fileId2!= null && source != null){
+							context = (JSONObject) p.parse(new String(
+				"{'extensions':{'"+ xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'graphfileId':'"
+						+ fileId + "','feedbackId':'"
+						+ fileId2 + "','source':'"
+						+ source + "','topic':'"
+						+ topic
+						+ "','taskNr':" + taskNr + "}}}"));
+						}
+		JSONObject xAPI = new JSONObject();
 
-	// 			// If the email exists in the table, the result set will contain one row with the UUID
-	// 			if (rs.next()) {
-	// 				res = rs.getString("uuid");
-	// 			} else {
-	// 				System.out.println("No UUID found for " + email);
-	// 			}
-	// 		}
-	// 	} catch (SQLException e) {
-	// 		// Handle any SQL errors
-	// 		e.printStackTrace();
-	// 	}
-	// 	return res;
-	// }
-
-	// public LrsCredentials getLrsCredentialsByCourse(int courseId){
-	// 	LrsCredentials res = null;
-	// 	try (Connection conn = getConnection();
-	// 		PreparedStatement pstmt = conn.prepareStatement("SELECT clientkey,clientsecret FROM lrsstoreforcourse WHERE courseid = ?")) {
-
-	// 		// Set the email parameter in the prepared statement
-	// 		pstmt.setInt(1, courseId);
-
-	// 		// Execute the query and retrieve the result set
-	// 		try (ResultSet rs = pstmt.executeQuery()) {
-
-	// 			// If the email exists in the table, the result set will contain one row with the UUID
-	// 			if (rs.next()) {
-	// 				String key = rs.getString("clientkey");
-	// 				String secret = rs.getString("clientsecret");
-	// 				res = new LrsCredentials(key, secret);
-	// 			} else {
-	// 				System.out.println("No lrs information found for course " + courseId);
-	// 			}
-	// 		}
-	// 	} catch (SQLException e) {
-	// 		// Handle any SQL errors
-	// 		e.printStackTrace();
-	// 	}
-	// 	return res;
-	// }
-
-	// public JSONObject prepareXapiStatement(String user, String verbId, String topic, int course, int taskNr, String fileId, String fileId2, String source) throws ParseException{
-	// 	JSONParser p = new JSONParser(JSONParser.MODE_PERMISSIVE);
-	// 	JSONObject actor = new JSONObject();
-	// 	actor.put("objectType", "Agent");
-	// 	JSONObject account = new JSONObject();
-	// 	account.put("name", user);
-	// 	account.put("homePage", xapiHomepage);
-	// 	actor.put("account", account);
-	// 	JSONObject verb = (JSONObject) p
-	// 			.parse(new String("{'display':{'en-US':'"+verbId+"'},'id':'" + xapiUrl + "/definitions/mwb/verb/" +verbId+"'}"));
-	// 	JSONObject object = (JSONObject) p
-	// 			.parse(new String("{'definition':{'interactionType':'other', 'name':{'en-US':'" + topic
-	// 					+ "'}, 'extensions':{'" + xapiUrl + "/definitions/mwb/object/course': {'id': " + course + "}}, 'description':{'en-US':'" + topic
-	// 					+ "'}, 'type':'"+ xapiUrl + "/definitions/chat/activities/file'}, 'id':'" + xapiUrl + "/definitions/chat/activities/file/" + fileId + "','objectType':'Activity'}"));
-	// 	JSONObject context = (JSONObject) p.parse(new String(
-	// 			"{'extensions':{'" + xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'id':'"
-	// 					+ fileId + "','topic':'"
-	// 					+ topic
-	// 					+ "','taskNr':" + taskNr + "}}}"));
-	// 					if (fileId2!= null && source != null){
-	// 						context = (JSONObject) p.parse(new String(
-	// 			"{'extensions':{'"+ xapiUrl + "/definitions/mwb/extensions/context/activity_data':{'graphfileId':'"
-	// 					+ fileId + "','feedbackId':'"
-	// 					+ fileId2 + "','source':'"
-	// 					+ source + "','topic':'"
-	// 					+ topic
-	// 					+ "','taskNr':" + taskNr + "}}}"));
-	// 					}
-	// 	JSONObject xAPI = new JSONObject();
-
-	// 	xAPI.put("authority", p.parse(
-	// 			new String("{'objectType': 'Agent','name': 'New Client', 'mbox': 'mailto:hello@learninglocker.net'}")));
-	// 	xAPI.put("context", context); //
-	// 	// xAPI.put("timestamp", java.time.LocalDateTime.now());
-	// 	xAPI.put("actor", actor);
-	// 	xAPI.put("object", object);
-	// 	xAPI.put("verb", verb);
-	// 	return xAPI;
-	// }
+		xAPI.put("authority", p.parse(
+				new String("{'objectType': 'Agent','name': 'New Client', 'mbox': 'mailto:hello@learninglocker.net'}")));
+		xAPI.put("context", context); //
+		// xAPI.put("timestamp", java.time.LocalDateTime.now());
+		xAPI.put("actor", actor);
+		xAPI.put("object", object);
+		xAPI.put("verb", verb);
+		return xAPI;
+	}
 
 }
