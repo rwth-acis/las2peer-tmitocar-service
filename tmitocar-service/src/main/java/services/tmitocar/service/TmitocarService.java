@@ -19,10 +19,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
@@ -564,18 +560,18 @@ public class TmitocarService {
 						// LRS Store feedback
 						String[] courseAndTask = label2.split("-");
 
-						// String uuid = getUuidByEmail(body.getUuid());
-						// 	if (uuid!=null){
-						// 		// user has accepted
-						// 	LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
-						// 	if(lrsCredentials!=null){
-						// 		JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
-						// 		String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
-						// 		Encoder e = Base64.getEncoder();
-						// 		String encodedString = e.encodeToString(toEncode.getBytes());
-						// 		sendXAPIStatement(xapi, encodedString);
-						// 	}
-						// }
+						String uuid = getUuidByEmail(body.getUuid());
+							if (uuid!=null){
+								// user has accepted
+							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
+							if(lrsCredentials!=null){
+								JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
+								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
+								Encoder e = Base64.getEncoder();
+								String encodedString = e.encodeToString(toEncode.getBytes());
+								sendXAPIStatement(xapi, encodedString);
+							}
+						}
 
 						JSONObject steve = new JSONObject();
 						// example, should be replaced with actual stuff
@@ -628,15 +624,6 @@ public class TmitocarService {
 		System.out.println("Block " + label1);
 		JSONObject error = new JSONObject();
 		JSONObject newText = new JSONObject();
-		// CodecRegistry pojoCodecRegistry = fromProviders(PojoCodecProvider.builder().automatic(true).build());
-		// CodecRegistry codecRegistry = fromRegistries(MongoClientSettings.getDefaultCodecRegistry(), pojoCodecRegistry);
-		// MongoClientSettings settings = MongoClientSettings.builder()
-		// 		.uuidRepresentation(UuidRepresentation.STANDARD)
-		// 		.applyConnectionString(new ConnectionString(mongoUri))
-		// 		.codecRegistry(codecRegistry)
-		// 		.build();
-		// // Create a new client and connect to the server
-		// MongoClient mongoClient = MongoClients.create(settings);
 
 		try {
 			new Thread(new Runnable() {
@@ -644,9 +631,6 @@ public class TmitocarService {
 				public void run() {
 					String[] courseAndTask = label2.split("-");
 					int courseId = Integer.parseInt(courseAndTask[0]);
-					Connection conn = null;
-					PreparedStatement stmt = null;
-					ResultSet rs = null;
 
 					storeFileLocally(label1, body.getText(), body.getType());
 					System.out.println("Upload text");
@@ -754,18 +738,18 @@ public class TmitocarService {
 						System.out.println("Storing PDF to mongodb...");
 						ObjectId feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf" ,body.getTopic()+"-feedback.pdf");
 
-						// String uuid = getUuidByEmail(body.getUuid());
-						// 	if (uuid!=null){
-						// 		// user has accepted
-						// 	LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
-						// 	if(lrsCredentials!=null){
-                        //         Encoder e = Base64.getEncoder();
-						// 		JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
-						// 		String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
-						// 		String encodedString = e.encodeToString(toEncode.getBytes());
-						// 		sendXAPIStatement(xapi, encodedString);
-						// 	}
-						// }
+						String uuid = getUuidByEmail(body.getUuid());
+							if (uuid!=null){
+								// user has accepted
+							LrsCredentials lrsCredentials = getLrsCredentialsByCourse(Integer.parseInt(courseAndTask[0]));
+							if(lrsCredentials!=null){
+                                Encoder e = Base64.getEncoder();
+								JSONObject xapi = prepareXapiStatement(uuid, "received_feedback", body.getTopic(), Integer.parseInt(courseAndTask[0]),Integer.parseInt(courseAndTask[1]),  graphFileId.toString(), feedbackFileId.toString(), sourceFileId);
+								String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
+								String encodedString = e.encodeToString(toEncode.getBytes());
+								sendXAPIStatement(xapi, encodedString);
+							}
+						}
 
 						JSONObject steve = new JSONObject();
 						// example, should be replaced with actual stuff
@@ -794,20 +778,6 @@ public class TmitocarService {
 						isActive.put(label1, false);
 						error.put("error", e.toString());
 						callBack(callbackUrl, label1, label1, label2, error);
-					} finally {
-						try {
-							if (rs != null) {
-								rs.close();
-							}
-							if (stmt != null) {
-								stmt.close();
-							}
-							if (conn != null) {
-								conn.close();
-							}
-						} catch (SQLException ex) {
-							System.out.println(ex.getMessage());
-						}
 					}
 				} 
 			}).start();
