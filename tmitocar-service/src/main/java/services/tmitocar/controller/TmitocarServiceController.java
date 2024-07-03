@@ -63,7 +63,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 
 @Tag(name="TmitocarService", description= "A tmitocar wrapper service for analyzing/evaluating texts.")
 @RestController
-@RequestMapping("/tmitocar")
+@RequestMapping("/")
 public class TmitocarServiceController {
 	@Autowired
 	private TmitocarService service;
@@ -336,8 +336,8 @@ public class TmitocarServiceController {
 		@ApiResponse(responseCode = "200" , description = "",content = {@Content(mediaType = "application/json")} ),
 		@ApiResponse(responseCode = "500", description = "Response failed.") 
 	})
-	@PostMapping(value = "/{label1}", consumes = MediaType.MULTIPART_FORM_DATA, produces = MediaType.APPLICATION_JSON)
-	public ResponseEntity<String> analyzeText(@PathVariable("label1") String label1,
+	@PostMapping(value = "/{label}", consumes = MediaType.MULTIPART_FORM_DATA, produces = MediaType.APPLICATION_JSON)
+	public ResponseEntity<String> analyzeText(@PathVariable("label") String label1,
 			@FormDataParam("file") InputStream textInputStream,
 			@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
 			@FormDataParam("topic") String topic, @FormDataParam("template") String template,
