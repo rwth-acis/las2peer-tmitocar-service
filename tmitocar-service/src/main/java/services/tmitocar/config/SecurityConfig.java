@@ -20,12 +20,19 @@ public class SecurityConfig {
     @Autowired
     private final JwtAuthConverter jwtAuthConverter;
 
+    private static final String[] WHITELIST = {
+        "/v3/api-docs/**",
+        "/v3/api-docs",
+    };
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
         .csrf(AbstractHttpConfigurer::disable)
         .cors(AbstractHttpConfigurer::disable)
-        .authorizeHttpRequests(req -> req.requestMatchers("/tmitocar")
+        .authorizeHttpRequests(req -> req
+            .requestMatchers(WHITELIST).permitAll()
+            .requestMatchers("/tmitocar")
             .permitAll()
             .anyRequest()
             .authenticated())
