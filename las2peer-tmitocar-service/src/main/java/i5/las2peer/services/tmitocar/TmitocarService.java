@@ -1701,8 +1701,9 @@ public class TmitocarService extends RESTService {
 				JSONObject acc = (JSONObject) p.parse(new String("{'account': { 'name': '" + user
 					+ "', 'homePage': '"+ service.xapiHomepage + "'}}"));
 				
+				String verb = service.xapiUrl + "/definitions/mwb/verb/uploaded_task";
 				LrsCredentials res = service.getLrsCredentialsByCourse(courseId);
-				URL url = new URL(service.lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
+				URL url = new URL(service.lrsURL + "/data/xAPI/statements?agent=" + acc.toString() + "&verb="+verb);
 				if(res==null){
 					return Response.ok().entity("problem").build();
 				}
@@ -1732,7 +1733,7 @@ public class TmitocarService extends RESTService {
 				for (Object index : statements) {
 					JSONObject jsonIndex = (JSONObject) index;
 					JSONObject actor = (JSONObject) jsonIndex.get("actor");
-					JSONObject verb = (JSONObject) jsonIndex.get("verb");
+					// JSONObject verb = (JSONObject) jsonIndex.get("verb");
 					JSONObject account = (JSONObject) actor.get("account");
 					if (account.get("name").toString().equals(user)
 							|| account.get("name").toString().equals(user)) {
@@ -1742,7 +1743,7 @@ public class TmitocarService extends RESTService {
 						// JSONObject definition = (JSONObject) object.get("definition");
 						JSONObject extensions = (JSONObject) context.get("extensions");// assignmentNumber
 						// check if its not a delete statement
-						if (extensions.get(service.xapiUrl + "/definitions/mwb/extensions/context/activity_data") != null && verb.get("id").toString().contains("uploaded_task")) {
+						if (extensions.get(service.xapiUrl + "/definitions/mwb/extensions/context/activity_data") != null) {
 							JSONObject fileDetails = (JSONObject) extensions
 									.get(service.xapiUrl + "/definitions/mwb/extensions/context/activity_data");
 							if (fileDetails.get("taskNr") != null) {
