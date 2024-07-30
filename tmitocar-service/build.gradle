@@ -7,6 +7,12 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.8.20'
 }
 
+// java {
+//   toolchain {
+//     languageVersion = JavaLanguageVersion.of(17)
+//   }
+// }
+
 repositories {
     // Use JCenter for resolving dependencies.
     mavenCentral()
@@ -60,22 +66,13 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-configurations {
-    // This ensures las2peer is available in the tests, but won't be bundled
-    testImplementation.extendsFrom implementation
-}
+// configurations {
+//     // This ensures las2peer is available in the tests, but won't be bundled
+//     testImplementation.extendsFrom implementation
+// }
 
-jar {
-    manifest {
-        attributes "Main-Class": "${project.property('service.name')}.${project.property('service.class')}"
-        attributes "Library-Version": "${project.property('service.version')}"
-        attributes "Library-SymbolicName": "${project.property('service.name')}"
-    }
-
-    from { (configurations.runtimeClasspath).collect { it.isDirectory() ? it : zipTree(it) } } {
-        // Exclude signatures to be able to natively bundle signed jars
-        exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
-    }
+bootJar {
+    mainClassName = "${project.property('service.name')}.${project.property('service.class')}"
 }
 
 application {
@@ -89,6 +86,40 @@ application {
     sourceCompatibility = "${project.property('java.version')}"
     targetCompatibility = "${project.property('java.version')}"
 }
+
+springBoot {
+    mainClassName = "${project.property('service.name')}.${project.property('service.class')}"
+}
+
+
+tasks.named('test') {
+  useJUnitPlatform()
+}
+
+// jar {
+//     manifest {
+//         attributes "Main-Class": "${project.property('service.name')}.${project.property('service.class')}"
+//         attributes "Library-Version": "${project.property('service.version')}"
+//         attributes "Library-SymbolicName": "${project.property('service.name')}"
+//     }
+
+//     from { (configurations.runtimeClasspath).collect { it.isDirectory() ? it : zipTree(it) } } {
+//         // Exclude signatures to be able to natively bundle signed jars
+//         exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
+//     }
+// }
+
+// application {
+//     // Define the main class for the application.
+//     mainClass = "${project.property('service.name')}.${project.property('service.class')}"
+
+//     group = "${project.property('service.name')}"
+//     archivesBaseName = group
+
+//     version = "${project.property('service.version')}"
+//     sourceCompatibility = "${project.property('java.version')}"
+//     targetCompatibility = "${project.property('java.version')}"
+// }
 
 // put all .jar files into export/jars folder
 tasks.withType(Jar) {
@@ -211,20 +242,20 @@ test {
 
 // Only required when using Eclipse:
 // configuration for eclipse (this allows to import the project as a gradle project in eclipse without any problems)
-eclipse {
-    classpath {
-      file {
-            whenMerged {
-                // change output directory for test, main, resources and default
-                def main = entries.find { it.path == "src/main/java" }
-                main.output = "output/main"
+// eclipse {
+//     classpath {
+//       file {
+//             whenMerged {
+//                 // change output directory for test, main, resources and default
+//                 def main = entries.find { it.path == "src/main/java" }
+//                 main.output = "output/main"
 
-                def test = entries.find { it.path == "src/test/java" }
-                test.output = "output/test"
+//                 def test = entries.find { it.path == "src/test/java" }
+//                 test.output = "output/test"
 
-                def defaultEntry = entries.find { it.kind == "output" && it.path == "bin/default" }
-                defaultEntry.path = "output/default"
-            }
-        }
-    }
-}
+//                 def defaultEntry = entries.find { it.kind == "output" && it.path == "bin/default" }
+//                 defaultEntry.path = "output/default"
+//             }
+//         }
+//     }
+// }
