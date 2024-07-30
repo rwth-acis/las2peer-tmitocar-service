@@ -68,6 +68,12 @@ public class TmitocarServiceController {
 	@Autowired
 	private TmitocarService service;
 
+	@GetMapping("/swagger.json")
+	public ResponseEntity<JSONObject> getSwagger() {
+		JSONObject swaggerJson = service.getSwagger();
+		return ResponseEntity.ok(swaggerJson);
+	}
+
     @Operation(tags = "getAllTasks", summary = "Returns all writing tasks")
 	@ApiResponses({ 
 			@ApiResponse(responseCode = "200" , description = "Get all writing tasks",content = {@Content(mediaType = "application/json")} ),

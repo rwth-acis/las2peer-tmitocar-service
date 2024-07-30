@@ -72,6 +72,7 @@ import services.tmitocar.repository.PersonRepository;
 import services.tmitocar.repository.WritingTaskRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -80,6 +81,7 @@ import org.springframework.data.mongodb.gridfs.GridFsTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -1055,4 +1057,20 @@ public class TmitocarService {
 		return xAPI;
 	}
 
+	@Value("${tmitocar.api-docs.uri}")
+	private String tmitocarApiDocsUri;
+
+	public JSONObject getSwagger(){
+		JSONObject swagger = new JSONObject();
+		// JSONObject swagger = new JSONObject();
+		String uri = tmitocarApiDocsUri + "/tmitocar/v3/api-docs";
+		RestTemplate restTemplate = new RestTemplate();
+		JSONObject result = restTemplate.getForObject(uri, JSONObject.class);
+		
+		swagger.put("swagger", "2.0");
+		swagger.put("info", result.get("info"));
+		swagger.put("basePath", "/tmitocar");
+		swagger.put("paths", result.get("paths"));
+		return swagger;
+	}
 }
