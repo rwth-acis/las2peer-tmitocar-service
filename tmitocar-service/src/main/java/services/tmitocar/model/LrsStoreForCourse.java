@@ -7,12 +7,12 @@ import jakarta.persistence.Table;
 @Table(name = "lrsstoreforcourse")
 public class LrsStoreForCourse {
     @Id
-    private Integer id;
+    private Integer courseid;
     private String clientkey;
     private String clientsecret;
 
     public Integer getId() {
-        return id;
+        return courseid;
     }
 
     public String getClientkey() {
@@ -24,7 +24,7 @@ public class LrsStoreForCourse {
     }
 
     public void setId(Integer id) {
-        this.id = id;
+        this.courseid = courseid;
     }
 
     public void setClientkey(String clientkey) {
