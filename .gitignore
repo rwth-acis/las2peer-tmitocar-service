@@ -34,6 +34,7 @@ tmitocar-service/export/jars/*.jar
 tmitocar-service/.classpath
 tmitocar-service/.settings/org.eclipse.jdt.core.prefs
 tmitocar-service/export
+tmitocar-service/tmitocar/
 .vscode/settings.json
 .project
 tmitocar-service/src/main/resource/*.properties
