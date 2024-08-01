@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.google.gson.Gson;
 
@@ -157,8 +158,7 @@ public class TmitocarServiceController {
 	 * Store text
 	 *
 	 * @param label1          the first label (user text)
-	 * @param textInputStream the InputStream containing the text to compare
-	 * @param textFileDetail  the file details of the text file
+	 * @param file  the InputStream containing the text to compare
 	 * @param type            the type of text (txt, pdf, docx)
 	 * @return id of the stored file
 	 * @throws ParseException if there is an error parsing the input parameters
@@ -171,8 +171,9 @@ public class TmitocarServiceController {
 	})
 	@PostMapping(value = "/{label1}", consumes = MediaType.MULTIPART_FORM_DATA, produces = MediaType.APPLICATION_JSON)
 	public ResponseEntity<String> analyzeText(@PathVariable("label1") String label1,
-			@FormDataParam("file") InputStream textInputStream,
-			@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
+			@FormDataParam("file") MultipartFile file,
+			// @FormDataParam("file") FormDataContentDisposition textFileDetail, 
+			@FormDataParam("type") String type,
 			@FormDataParam("topic") String topic, @FormDataParam("template") String template,
 			@FormDataParam("wordSpec") String wordSpec) throws ParseException, IOException {
 		if (service.isActive.getOrDefault(label1, false)) {
@@ -189,7 +190,7 @@ public class TmitocarServiceController {
 			return new ResponseEntity<String>(err.toJSONString(), HttpStatus.NOT_FOUND);
 		}
 		service.isActive.put(label1, true);
-		String encodedByteString = service.convertInputStreamToBase64(textInputStream);
+		String encodedByteString = service.convertInputStreamToBase64(file.getInputStream());
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(topic);
 		tmitoBody.setType(type);
@@ -199,7 +200,7 @@ public class TmitocarServiceController {
 		service.processSingleText(label1, topic, template, tmitoBody);
 
 		byte[] bytes = Base64.getDecoder().decode(encodedByteString);
-		String fname = textFileDetail.getFileName();
+		String fname = file.getOriginalFilename();
 		String fileEnding = "txt";
 		int dotIndex = fname.lastIndexOf('.');
 		if (dotIndex > 0 && dotIndex < fname.length() - 1) {
@@ -209,11 +210,11 @@ public class TmitocarServiceController {
 		if (uploaded == null) {
 			return ResponseEntity.badRequest().body("Could not store file " + fname);
 		}
-		try {
-			textInputStream.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		// try {
+		// 	textInputStream.close();
+		// } catch (IOException e) {
+		// 	e.printStackTrace();
+		// }
 		TmitocarResponse response = new TmitocarResponse(uploaded.toString());
 		Gson g = new Gson();
 		return ResponseEntity.ok(g.toJson(response));
@@ -327,8 +328,7 @@ public class TmitocarServiceController {
 	 * Anaylze text
 	 *
 	 * @param label1          the first label (user text)
-	 * @param textInputStream the InputStream containing the text to compare
-	 * @param textFileDetail  the file details of the text file
+	 * @param file the InputStream containing the text to compare
 	 * @param type            the type of text (txt, pdf or docx)
 	 * @param topic           the topic of the text (e.g. BiWi 5)
 	 * @param template        the template to use for the PDF report
@@ -344,8 +344,9 @@ public class TmitocarServiceController {
 	})
 	@PostMapping(value = "/{label}", consumes = MediaType.MULTIPART_FORM_DATA, produces = MediaType.APPLICATION_JSON)
 	public ResponseEntity<String> analyzeText(@PathVariable("label") String label1,
-			@FormDataParam("file") InputStream textInputStream,
-			@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type,
+			@FormDataParam("file") MultipartFile file,
+			// @FormDataParam("file") FormDataContentDisposition textFileDetail,
+			@FormDataParam("type") String type,
 			@FormDataParam("topic") String topic, @FormDataParam("template") String template,
 			@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId,@FormDataParam("task") int task, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
 		if (service.isActive.getOrDefault(label1, false)) {
@@ -364,7 +365,7 @@ public class TmitocarServiceController {
 			return new ResponseEntity<String>(err.toJSONString(), HttpStatus.NOT_FOUND);
 		}
 		service.isActive.put(label1, true);
-		String encodedByteString = service.convertInputStreamToBase64(textInputStream);
+		String encodedByteString = service.convertInputStreamToBase64(file.getInputStream());
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(topic);
 		tmitoBody.setType(type);
@@ -374,7 +375,7 @@ public class TmitocarServiceController {
 		service.processSingleText(label1, topic, template, tmitoBody);
 
 		byte[] bytes = Base64.getDecoder().decode(encodedByteString);
-		String fname = textFileDetail.getFileName();
+		String fname = file.getOriginalFilename();
 
 		String fileEnding = "txt";
 		int dotIndex = fname.lastIndexOf('.');
@@ -386,11 +387,11 @@ public class TmitocarServiceController {
 		if (uploaded == null) {
 			return ResponseEntity.badRequest().body("Could not store file " + fname);
 		}
-		try {
-			textInputStream.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		// try {
+		// 	textInputStream.close();
+		// } catch (IOException e) {
+		// 	e.printStackTrace();
+		// }
 		TmitocarResponse response = new TmitocarResponse(uploaded.toString());
 		String uuid = service.getUuidByEmail(email);
 		if (uuid!=null){
@@ -462,8 +463,7 @@ public class TmitocarServiceController {
 	 *
 	 * @param label1          the first label (user text)
 	 * @param label2          the second label (expert or second user text)
-	 * @param textInputStream the InputStream containing the text to compare
-	 * @param textFileDetail  the file details of the text file
+	 * @param file the InputStream containing the text to compare
 	 * @param type            the type of text (txt, pdf or docx)
 	 * @param template        the template to use for the PDF report
 	 * @param wordSpec        the word specification for the PDF report
@@ -478,8 +478,9 @@ public class TmitocarServiceController {
 	})
 	@PostMapping(value = "/compareText" , consumes = MediaType.MULTIPART_FORM_DATA, produces = MediaType.APPLICATION_JSON)
 	public ResponseEntity<String> compareText(@RequestParam("label1") String label1, @RequestParam("label2") String label2,
-			@FormDataParam("file") InputStream textInputStream,
-			@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type, @FormDataParam("template") String template,
+			@FormDataParam("file") MultipartFile file,
+			// @FormDataParam("file") FormDataContentDisposition textFileDetail, 
+			@FormDataParam("type") String type, @FormDataParam("template") String template,
 			@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
 		if (service.isActive.getOrDefault(label1, false)) {
 			JSONObject err = new JSONObject();
@@ -488,7 +489,7 @@ public class TmitocarServiceController {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err.toJSONString());
 		}
 		
-		File templatePath = new File("tmitocar/templates/" + template);
+		File templatePath = new File("./tmitocar/templates/" + template);
 		if (!templatePath.exists()){
 			JSONObject err = new JSONObject();
 			err.put("errorMessage", "Template: " + template + " not found.");
@@ -500,7 +501,7 @@ public class TmitocarServiceController {
 
 		String topic = service.getTaskNameByIds(courseId, Integer.parseInt(label2));
 
-
+		InputStream textInputStream = file.getInputStream();
 		String encodedByteString = service.convertInputStreamToBase64(textInputStream);
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(topic);
@@ -510,7 +511,7 @@ public class TmitocarServiceController {
 		tmitoBody.setText(encodedByteString);
 		tmitoBody.setUuid(email);
 		byte[] bytes = Base64.getDecoder().decode(encodedByteString);
-		String fname = textFileDetail.getFileName();
+		String fname = file.getOriginalFilename();
 		String fileEnding = "txt";
 		int dotIndex = fname.lastIndexOf('.');
 		if (dotIndex > 0 && dotIndex < fname.length() - 1) {
@@ -605,8 +606,7 @@ public class TmitocarServiceController {
 	 *
 	 * @param label1          the first label (user text)
 	 * @param label2          the second label (expert or second user text)
-	 * @param textInputStream the InputStream containing the text to compare
-	 * @param textFileDetail  the file details of the text file
+	 * @param file the InputStream containing the text to compare
 	 * @param type            the type of text (txt, pdf or docx)
 	 * @param template        the template to use for the PDF report
 	 * @param wordSpec        the word specification for the PDF report
@@ -621,8 +621,9 @@ public class TmitocarServiceController {
 	})
 	@PostMapping(value = "/{label1}/compareWithLLM/{label2}" , consumes = MediaType.MULTIPART_FORM_DATA, produces = MediaType.APPLICATION_JSON)
 	public ResponseEntity<String> compareTextWithLLM(@PathVariable("label1") String label1, @PathVariable("label2") String label2,
-			@FormDataParam("file") InputStream textInputStream,
-			@FormDataParam("file") FormDataContentDisposition textFileDetail, @FormDataParam("type") String type, @FormDataParam("template") String template,
+			@FormDataParam("file") MultipartFile file,
+			// @FormDataParam("file") FormDataContentDisposition textFileDetail, 
+			@FormDataParam("type") String type, @FormDataParam("template") String template,
 			@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
 		if (service.isActive.getOrDefault(label1, false)) {
 			JSONObject err = new JSONObject();
@@ -644,7 +645,7 @@ public class TmitocarServiceController {
 		String topic = service.getTaskNameByIds(courseId, Integer.parseInt(label2));
 
 
-		String encodedByteString = service.convertInputStreamToBase64(textInputStream);
+		String encodedByteString = service.convertInputStreamToBase64(file.getInputStream());
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(topic);
 		tmitoBody.setType(type);
@@ -653,7 +654,7 @@ public class TmitocarServiceController {
 		tmitoBody.setText(encodedByteString);
 		tmitoBody.setUuid(email);
 		byte[] bytes = Base64.getDecoder().decode(encodedByteString);
-		String fname = textFileDetail.getFileName();
+		String fname = file.getOriginalFilename();
 		String fileEnding = "txt";
 		int dotIndex = fname.lastIndexOf('.');
 		if (dotIndex > 0 && dotIndex < fname.length() - 1) {
@@ -663,11 +664,11 @@ public class TmitocarServiceController {
 		if (uploaded == null) {
 			return ResponseEntity.badRequest().body("Could not store file " + fname);
 		}
-		try {
-			textInputStream.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		// try {
+		// 	textInputStream.close();
+		// } catch (IOException e) {
+		// 	e.printStackTrace();
+		// }
 		boolean comparing = service.llm_feedback(label1, courseId + "-"+ label2, template, tmitoBody, sbfmURL,uploaded.toString());
 
 		if (!comparing) {
