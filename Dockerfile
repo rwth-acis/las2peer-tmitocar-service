@@ -1,5 +1,6 @@
-# tmitocar dependencies (jq, ruby, coreutils)
+# Use a Java base image
 FROM openjdk:17-jdk-buster
+
 RUN set -x \
     && apt-get update \
     \
@@ -18,26 +19,35 @@ RUN apt-get install -y file
 
 RUN apt-get install -y vim
 
+# Set the working directory 
 COPY . /src
 WORKDIR /src
 
-#RUN wget https://github.com/jgm/pandoc/releases/download/2.5/pandoc-2.5-linux.tar.gz
-#RUN tar -zxf pandoc-2.5-linux.tar.gz
-#RUN cp -R pandoc-2.5/bin/* /usr/bin/
-# && tar -zxf pandoc-2.9.2.1-linux-amd64.tar.gz 
-
 RUN git clone https://gitlab.com/Tech4Comp/tmitocar-tools.git/ tmitocar
-
 RUN chmod -R 777 tmitocar
-
 RUN dos2unix tmitocar/tmitocar.sh
-
 RUN dos2unix tmitocar/feedback.sh
-
-RUN chmod +x /src/docker-entrypoint.sh
-RUN dos2unix /src/docker-entrypoint.sh
 RUN dos2unix /src/gradle.properties
 RUN dos2unix gradlew
 RUN chmod +x gradlew && ./gradlew build --exclude-task test
 
-ENTRYPOINT ["/src/docker-entrypoint.sh"]
+# Copy the Spring Boot application JAR file into the Docker image
+# COPY --from=builder /tmitocar-service/build/libs/*.jar /src/services.openAIService-2.0.0.jar
+
+# Set environment variables
+ENV SERVER_PORT=8080
+ENV ISSUER_URI=https://auth.las2peer.org/auth/realms/main 
+ENV SET_URI=https://auth.las2peer.org/auth/realms/main/protocol/openid-connect/certs
+ENV SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/mentoring-workbench
+ENV SPRING_DATASOURCE_USERNAME=postgres
+ENV SPRING_DATASOURCE_PASSWORD=
+ENV SPRING_DATA_MONGODB_URI=mongodb://localhost:27017/
+ENV SPRING_DATA_MONGODB_DATABASE=
+ENV SPRING_DATA_MONGODB_USERNAME=
+ENV SPRING_DATA_MONGODB_PASSWORD=
+
+# Expose the port that the Spring Boot application is listening on
+EXPOSE 8080
+
+# Entry point to run the Spring Boot application
+ENTRYPOINT ["java","-jar","src/tmitocar-service/export/jars/services.tmitocar-3.0.0.jar", "--spring.security.oauth2.resourceserver.jwt.issuer-uri=${ISSUER_URI}", "--spring.security.oauth2.resourceserver.jwt.jwk-set-uri=${SET_URI}"]
