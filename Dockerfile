@@ -1,3 +1,13 @@
+FROM gradle:jdk17-alpine AS builder
+
+WORKDIR /tmitocar-service
+
+COPY --chown=gradle:gradle tmitocar-service/build.gradle settings.gradle /tmitocar-service/
+COPY --chown=gradle:gradle tmitocar-service/src /tmitocar-service/src
+COPY --chown=gradle:gradle gradle.properties /tmitocar-service/gradle.properties
+
+RUN gradle --no-daemon build 
+
 # Use a Java base image
 FROM openjdk:17-jdk-buster
 
@@ -27,12 +37,12 @@ RUN git clone https://gitlab.com/Tech4Comp/tmitocar-tools.git/ tmitocar
 RUN chmod -R 777 tmitocar
 RUN dos2unix tmitocar/tmitocar.sh
 RUN dos2unix tmitocar/feedback.sh
-RUN dos2unix /src/gradle.properties
-RUN dos2unix gradlew
-RUN chmod +x gradlew && ./gradlew build --exclude-task test
+# RUN dos2unix /src/gradle.properties
+# RUN dos2unix gradlew
+# RUN chmod +x gradlew && ./gradlew build --exclude-task test
 
 # Copy the Spring Boot application JAR file into the Docker image
-# COPY --from=builder /tmitocar-service/build/libs/*.jar /src/services.openAIService-2.0.0.jar
+COPY --from=builder /tmitocar-service/build/libs/*.jar /src/services.tmitocar-3.0.0.jar
 
 # Set environment variables
 ENV SERVER_PORT=8080
@@ -45,9 +55,13 @@ ENV SPRING_DATA_MONGODB_URI=mongodb://localhost:27017/
 ENV SPRING_DATA_MONGODB_DATABASE=
 ENV SPRING_DATA_MONGODB_USERNAME=
 ENV SPRING_DATA_MONGODB_PASSWORD=
+ENV XAPI_URL=
+ENV XAPI_HOMEPAGE=
+ENV PUBLIC_KEY=
+ENV PRIVATE_KEY=
 
 # Expose the port that the Spring Boot application is listening on
 EXPOSE 8080
 
-# Entry point to run the Spring Boot application
-ENTRYPOINT ["java","-jar","src/tmitocar-service/export/jars/services.tmitocar-3.0.0.jar", "--spring.security.oauth2.resourceserver.jwt.issuer-uri=${ISSUER_URI}", "--spring.security.oauth2.resourceserver.jwt.jwk-set-uri=${SET_URI}"]
+# Set the entry point to run the docker-entrypoint.sh script
+ENTRYPOINT ["/src/docker-entrypoint.sh"]
