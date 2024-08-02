@@ -86,13 +86,15 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class TmitocarService {
+	@Value("${publicKey}")
 	public String publicKey;
-	public String lrsURL;
 
 	public HashMap<String, Boolean> isActive = null;
 	public HashMap<String, String> userTexts = null;
 
+	@Value("${xapi.url}")
 	public String xapiUrl;
+	@Value("${xapi.homepage}")
 	public String xapiHomepage;
 
 	public final static String AUTH_FILE = "./tmitocar/auth.json";
@@ -142,7 +144,7 @@ public class TmitocarService {
 		initVariables();
 	
 		// Call the initAuth() method to initialize the authentication mechanism.
-		// initAuth();
+		initAuth();
 	
 		// Call the initDB() method to initialize the database connection.
 		// initDB();
@@ -941,7 +943,7 @@ public class TmitocarService {
 		// Copy pasted from LL service
 		// POST statements
 		try {
-			URL url = new URL(lrsURL + "/data/xAPI/statements");
+			URL url = new URL(xapiUrl + "/data/xAPI/statements");
 			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 			conn.setDoOutput(true);
 			conn.setDoInput(true);

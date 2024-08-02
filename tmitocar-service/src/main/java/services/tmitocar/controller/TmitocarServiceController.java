@@ -876,7 +876,7 @@ public class TmitocarServiceController {
 				+ "', 'homePage': '"+ service.xapiHomepage + "'}}"));
 			
 			LrsCredentials res = service.getLrsCredentialsByCourse(courseId);
-			URL url = new URL(service.lrsURL + "/data/xAPI/statements?agent=" + acc.toString());
+			URL url = new URL(service.xapiUrl + "/data/xAPI/statements?agent=" + acc.toString());
 			if(res==null){
 				return ResponseEntity.ok("problem");
 			}
