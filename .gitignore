@@ -39,3 +39,4 @@ tmitocar-service/tmitocar/
 .project
 tmitocar-service/src/main/resource/*.properties
 application.properties
+.env
