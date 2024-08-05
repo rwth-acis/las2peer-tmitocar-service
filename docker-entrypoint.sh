@@ -12,7 +12,7 @@ export SERVICE_VERSION=$(awk -F "=" '/service.version/ {print $2}' gradle.proper
 export SERVICE_NAME=$(awk -F "=" '/service.name/ {print $2}' gradle.properties)
 export SERVICE_CLASS=$(awk -F "=" '/service.class/ {print $2}' gradle.properties)
 export SERVICE=${SERVICE_NAME}.${SERVICE_CLASS}@${SERVICE_VERSION}
-export SERVICE_PROPERTY_FILE='tmitocar-service/build/resources/main/application.properties'
+export SERVICE_PROPERTY_FILE='tmitocar-service/src/resources/application.properties'
 
 # Check mandatory variables
 [[ -z "${PRIVATE_KEY}" ]] && \
