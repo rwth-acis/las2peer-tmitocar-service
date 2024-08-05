@@ -37,6 +37,4 @@ tmitocar-service/export
 tmitocar-service/tmitocar/
 .vscode/settings.json
 .project
-tmitocar-service/src/main/resource/*.properties
-application.properties
 .env
