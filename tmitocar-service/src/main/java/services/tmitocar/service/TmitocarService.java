@@ -50,7 +50,8 @@ import com.mongodb.client.gridfs.model.GridFSFile;
 
 import com.mongodb.client.model.Filters;
 
-
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
@@ -83,8 +84,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.stereotype.Service;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class TmitocarService {
 	@Value("${publicKey}")
 	public String publicKey;
@@ -1065,7 +1070,7 @@ public class TmitocarService {
 	public JSONObject getSwagger(){
 		JSONObject swagger = new JSONObject();
 		// JSONObject swagger = new JSONObject();
-		String uri = tmitocarApiDocsUri + "/./tmitocar/v3/api-docs";
+		String uri = tmitocarApiDocsUri + "/tmitocar/v3/api-docs";
 		RestTemplate restTemplate = new RestTemplate();
 		JSONObject result = restTemplate.getForObject(uri, JSONObject.class);
 		

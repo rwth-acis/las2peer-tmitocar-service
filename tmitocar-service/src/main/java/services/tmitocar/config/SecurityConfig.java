@@ -28,7 +28,7 @@ public class SecurityConfig {
         "/v3/api-docs/**",
         "/v3/api-docs",
         "/swagger.json",
-        "/tmitocar/swagger.json"
+        "tmitocar/swagger.json"
     };
 
     @Bean
@@ -48,4 +48,5 @@ public class SecurityConfig {
             .jwkSetUri(jwkSetUri)
             )).build();
     }
+    
 }
