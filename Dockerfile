@@ -63,5 +63,6 @@ ENV PRIVATE_KEY=
 # Expose the port that the Spring Boot application is listening on
 EXPOSE 8080
 
+RUN chmod +x /src/docker-entrypoint.sh
 # Set the entry point to run the docker-entrypoint.sh script
 ENTRYPOINT ["/src/docker-entrypoint.sh"]
