@@ -48,7 +48,7 @@ COPY --from=builder /tmitocar-service/build/libs/*.jar /src/services.tmitocar-3.
 ENV SERVER_PORT=8080
 ENV ISSUER_URI=https://auth.las2peer.org/auth/realms/main 
 ENV SET_URI=https://auth.las2peer.org/auth/realms/main/protocol/openid-connect/certs
-ENV SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/mentoring-workbench
+ENV SPRING_DATASOURCE_URL=
 ENV SPRING_DATASOURCE_USERNAME=postgres
 ENV SPRING_DATASOURCE_PASSWORD=
 ENV SPRING_DATA_MONGODB_URI=mongodb://localhost:27017/
@@ -63,6 +63,5 @@ ENV PRIVATE_KEY=
 # Expose the port that the Spring Boot application is listening on
 EXPOSE 8080
 
-RUN chmod +x /src/docker-entrypoint.sh
 # Set the entry point to run the docker-entrypoint.sh script
-ENTRYPOINT ["/src/docker-entrypoint.sh"]
+ENTRYPOINT ["java","-jar","/src/services.tmitocar-3.0.0.jar", "--spring.security.oauth2.resourceserver.jwt.issuer-uri=${ISSUER_URI}", "--spring.security.oauth2.resourceserver.jwt.jwk-set-uri=${SET_URI}"]
