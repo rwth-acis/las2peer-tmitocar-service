@@ -84,12 +84,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.stereotype.Service;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class TmitocarService {
 	@Value("${publicKey}")
 	public String publicKey;
@@ -146,10 +142,10 @@ public class TmitocarService {
 		// setFieldValues();
 	
 		// Call the initVariables() method to initialize some variables.
-		// initVariables();
+		initVariables();
 	
 		// Call the initAuth() method to initialize the authentication mechanism.
-		// initAuth();
+		initAuth();
 	
 		// Call the initDB() method to initialize the database connection.
 		// initDB();
@@ -167,11 +163,11 @@ public class TmitocarService {
 	// }
 
 	public void initVariables() {
-		if (isActive == null) {
-			isActive = new HashMap<String, Boolean>();
+		if (this.isActive == null) {
+			this.isActive = new HashMap<String, Boolean>();
 		}
-		if (userTexts == null) {
-			userTexts = new HashMap<String, String>();
+		if (this.userTexts == null) {
+			this.userTexts = new HashMap<String, String>();
 		}
 	}
 
