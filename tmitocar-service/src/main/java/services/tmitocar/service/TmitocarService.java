@@ -94,8 +94,8 @@ public class TmitocarService {
 	@Value("${publicKey}")
 	public String publicKey;
 
-	public HashMap<String, Boolean> isActive = null;
-	public HashMap<String, String> userTexts = null;
+	public HashMap<String, Boolean> isActive = new HashMap<String, Boolean>();
+	public HashMap<String, String> userTexts = new HashMap<String, String>();
 
 	@Value("${xapi.url}")
 	public String xapiUrl;
