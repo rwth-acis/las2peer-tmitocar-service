@@ -94,15 +94,15 @@ public class TmitocarService {
 	@Value("${publicKey}")
 	public String publicKey;
 
-	public HashMap<String, Boolean> isActive = new HashMap<String, Boolean>();
-	public HashMap<String, String> userTexts = new HashMap<String, String>();
+	public HashMap<String, Boolean> isActive = null;
+	public HashMap<String, String> userTexts = null;
 
 	@Value("${xapi.url}")
 	public String xapiUrl;
 	@Value("${xapi.homepage}")
 	public String xapiHomepage;
 
-	public final static String AUTH_FILE = "./tmitocar/auth.json";
+	public final static String AUTH_FILE = "tmitocar/auth.json";
 
 	@Autowired
 	private WritingTaskRepository writingTaskRepository;
@@ -146,10 +146,10 @@ public class TmitocarService {
 		// setFieldValues();
 	
 		// Call the initVariables() method to initialize some variables.
-		initVariables();
+		// initVariables();
 	
 		// Call the initAuth() method to initialize the authentication mechanism.
-		initAuth();
+		// initAuth();
 	
 		// Call the initDB() method to initialize the database connection.
 		// initDB();
@@ -290,13 +290,13 @@ public class TmitocarService {
 		ObjectId fileId = null;
 		try {
 			byte[] pdfByte = Files.readAllBytes(
-					Paths.get("./tmitocar/" + fileName));
+					Paths.get("tmitocar/" + fileName));
 			if(fileName==null){
 				fileId = storeFile(fileName, pdfByte);
 			}else{
 				fileId = storeFile(renameFile, pdfByte);
 			}
-			Files.delete(Paths.get("./tmitocar/" + fileName));
+			Files.delete(Paths.get("tmitocar/" + fileName));
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.out.println("Failed storing PDF.");
@@ -393,7 +393,7 @@ public class TmitocarService {
 		String fileName = createFileName(name, type);
 		System.out.println("Write File");
 
-		File f = new File("./tmitocar/texts/" + name + "/" + fileName);
+		File f = new File("tmitocar/texts/" + name + "/" + fileName);
 		try {
 			boolean b = f.getParentFile().mkdirs();
 			b = f.createNewFile();
@@ -406,16 +406,16 @@ public class TmitocarService {
 				byte[] decodedBytes = d.decode(text);
 				System.out.println(decodedBytes);
 				FileUtils.writeByteArrayToFile(f, decodedBytes);
-				textContent = readTxtFile("./tmitocar/texts/" + name + "/" + fileName);
+				textContent = readTxtFile("tmitocar/texts/" + name + "/" + fileName);
 			} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
                 byte[] decodedBytes = d.decode(text);
 				System.out.println(decodedBytes);
 				FileUtils.writeByteArrayToFile(f, decodedBytes);
-				textContent = readPDFFile("./tmitocar/texts/" + name + "/" + fileName);
+				textContent = readPDFFile("tmitocar/texts/" + name + "/" + fileName);
 			} else if (type.equalsIgnoreCase("application/vnd.openxmlformats-officedocument.wordprocessingml.document") || type.equalsIgnoreCase("docx")) {
 				byte[] decodedBytes = d.decode(text);
 				FileUtils.writeByteArrayToFile(f, decodedBytes);
-				textContent = readDocXFile("./tmitocar/texts/" + name + "/" + fileName);
+				textContent = readDocXFile("tmitocar/texts/" + name + "/" + fileName);
 			} else {
 				System.out.println("wrong type");
 				throw new IOException();
@@ -440,17 +440,17 @@ public class TmitocarService {
 	public void deleteFileLocally(String name) {
 		// or should we delete the user folder afterwards?
 		try {
-			Files.delete(Paths.get("./tmitocar/texts/" + name + "/" + name + ".txt"));
+			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name + ".txt"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		try {
-			Files.delete(Paths.get("./tmitocar/texts/" + name + "/" + name + ".pdf"));
+			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name + ".pdf"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		try {
-			Files.delete(Paths.get("./tmitocar/texts/" + name + "/" + name + ".docx"));
+			Files.delete(Paths.get("tmitocar/texts/" + name + "/" + name + ".docx"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -495,7 +495,7 @@ public class TmitocarService {
 		pb.directory(new File("tmitocar"));
 		Process p = pb.start();
 		p.waitFor();
-		cleanJSONFile("./tmitocar/comparison_" + label1 + "_vs_" + label2 + ".json");
+		cleanJSONFile("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".json");
 	}
 
 	private void generateFeedback(String label1, String label2, String template, String topic)
@@ -667,11 +667,11 @@ public class TmitocarService {
 
 						newText.put("userId", label1);
 
-						File f = new File("./tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt");
-						File f_send = new File("./tmitocar/texts/" + label1 + "/"+ label1 + "-" + courseAndTask[1] + ".txt-cleaned.txt");
+						File f = new File("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt");
+						File f_send = new File("tmitocar/texts/" + label1 + "/"+ label1 + "-" + courseAndTask[1] + ".txt-cleaned.txt");
 						if (f.exists()) {
 							System.out.println("Get content from -cleaned.txt.");
-							newText.put("studentInput", readTxtFile("./tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt"));
+							newText.put("studentInput", readTxtFile("tmitocar/texts/" + label1 + "/"+ label1 + ".txt-cleaned.txt"));
 							f.renameTo(f_send);
 						} else {
 							newText.put("studentInput", userTexts.get(label1));
@@ -731,7 +731,7 @@ public class TmitocarService {
 
 						System.out.println("Write response to markdown.");
 						//store response as markdown
-						FileWriter writer = new FileWriter("./tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md");
+						FileWriter writer = new FileWriter("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md");
 						writer.write(r_new);
 						writer.close();
 
@@ -742,7 +742,7 @@ public class TmitocarService {
 						pb.directory(new File("tmitocar"));
 						Process process2 = pb.start();
 						process2.waitFor();
-						Files.delete(Paths.get("./tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md"));
+						Files.delete(Paths.get("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".md"));
 
 						System.out.println("Storing PDF to mongodb...");
 						ObjectId feedbackFileId = storeLocalFileRemote("comparison_" + label1 + "_vs_" + label2 + ".pdf" ,body.getTopic()+"-feedback.pdf");
@@ -817,7 +817,7 @@ public class TmitocarService {
 					System.out.println("Write File");
 					String wordspec = body.getWordSpec();
 
-					File f = new File("./tmitocar/texts/" + user + "/" + fileName);
+					File f = new File("tmitocar/texts/" + user + "/" + fileName);
 					try {
 						boolean b = f.getParentFile().mkdirs();
 						b = f.createNewFile();
@@ -825,16 +825,16 @@ public class TmitocarService {
 						if (type.toLowerCase().equals("text/plain") || type.toLowerCase().equals("text")) {
 							byte[] decodedBytes = d.decode(body.getText());
 							FileUtils.writeByteArrayToFile(f, decodedBytes);
-							textContent = readTxtFile("./tmitocar/texts/" + user + "/" + fileName);
+							textContent = readTxtFile("tmitocar/texts/" + user + "/" + fileName);
 						} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
 							byte[] decodedBytes = d.decode(body.getText());
 							System.out.println(decodedBytes);
 							FileUtils.writeByteArrayToFile(f, decodedBytes);
-							textContent = readPDFFile("./tmitocar/texts/" + user + "/" + fileName);
+							textContent = readPDFFile("tmitocar/texts/" + user + "/" + fileName);
 						} else if (type.equalsIgnoreCase("application/vnd.openxmlformats-officedocument.wordprocessingml.document") || type.equalsIgnoreCase("docx")) {
 							byte[] decodedBytes = d.decode(body.getText());
 							FileUtils.writeByteArrayToFile(f, decodedBytes);
-							textContent = readDocXFile("./tmitocar/texts/" + user + "/" + fileName);
+							textContent = readDocXFile("tmitocar/texts/" + user + "/" + fileName);
 						}
 						if (textContent.replaceAll("\\s", "").length() < 350) {
 							System.out.println("not enough words");
