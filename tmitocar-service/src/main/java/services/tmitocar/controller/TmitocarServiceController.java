@@ -58,7 +58,6 @@ import org.bson.types.ObjectId;
 
 import javax.ws.rs.core.MediaType;
 
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
 
@@ -68,6 +67,12 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 public class TmitocarServiceController {
 	@Autowired
 	private TmitocarService service;
+	
+	public TmitocarServiceController() {
+		service.initAuth();
+		service.initVariables();
+	}
+
 
 	@GetMapping("/swagger.json")
 	public ResponseEntity<JSONObject> getSwagger() {
