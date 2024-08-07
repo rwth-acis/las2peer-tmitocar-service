@@ -158,7 +158,7 @@ public class TmitocarServiceController {
 	 *
 	 * @param label1          the first label (user text)
 	 * @param file  the InputStream containing the text to compare
-	 * @param type            the type of text (txt, pdf, docx)
+	 * @param type            the type of text (text, pdf, docx)
 	 * @return id of the stored file
 	 * @throws ParseException if there is an error parsing the input parameters
 	 * @throws IOException    if there is an error reading the input stream
@@ -463,7 +463,7 @@ public class TmitocarServiceController {
 	 * @param label1          the first label (user text)
 	 * @param label2          the second label (expert or second user text)
 	 * @param file the InputStream containing the text to compare
-	 * @param type            the type of text (txt, pdf or docx)
+	 * @param type            the type of text (text, pdf or docx)
 	 * @param template        the template to use for the PDF report
 	 * @param wordSpec        the word specification for the PDF report
 	 * @return the id of the stored file
@@ -606,7 +606,7 @@ public class TmitocarServiceController {
 	 * @param label1          the first label (user text)
 	 * @param label2          the second label (expert or second user text)
 	 * @param file the InputStream containing the text to compare
-	 * @param type            the type of text (txt, pdf or docx)
+	 * @param type            the type of text (text, pdf or docx)
 	 * @param template        the template to use for the PDF report
 	 * @param wordSpec        the word specification for the PDF report
 	 * @return the id of the stored file

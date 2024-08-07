@@ -897,6 +897,7 @@ public class TmitocarService {
             reader.close();
 
             // Parse the JSON
+			System.out.println("JSON String: "+ jsonString.toString());
 			JSONParser parser = new JSONParser(JSONParser.MODE_PERMISSIVE);
             JSONObject json = (JSONObject) parser.parse(jsonString.toString());
 
