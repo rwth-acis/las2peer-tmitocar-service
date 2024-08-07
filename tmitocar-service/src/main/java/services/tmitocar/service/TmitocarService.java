@@ -458,12 +458,12 @@ public class TmitocarService {
 		if (wordspec != null && wordspec.length() > 2) {
 			System.out.println("Using wordspec: " + wordspec);
 			pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-					"texts/" + label1 + "/" + fileName,
+					"tmitocar/texts/" + label1 + "/" + fileName,
 					"-l", label1, "-o", "json", "-S", "-w", wordspec);
 
 		} else {
 			pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-					"texts/" + label1 + "/" + fileName,
+					"tmitocar/texts/" + label1 + "/" + fileName,
 					"-l", label1, "-o", "json", "-S");
 		}
 
@@ -486,13 +486,11 @@ public class TmitocarService {
 			throws InterruptedException, IOException {
 		ProcessBuilder pb = new ProcessBuilder("bash", scriptFile, "-s", "-o", "pdf", "-i",
 				"comparison_" + label1 + "_vs_" + label2 + ".json", "-t",
-				"templates/" + template, "-S", topic, "-l", label1, "-c", label2);
+				"templates/" + template, "-S", topic);
 		pb.inheritIO();
 		pb.directory(new File("tmitocar"));
 		Process p = pb.start();
 		p.waitFor();
-		System.out.println(label2);
-		System.out.println("Lookup path:"+"tmitocar/comparison_" + label1 + "_vs_" + label2 + ".json");
 		cleanJSONFile("tmitocar/comparison_" + label1 + "_vs_" + label2 + ".json");
 	}
 
