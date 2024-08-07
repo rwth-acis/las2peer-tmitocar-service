@@ -458,12 +458,12 @@ public class TmitocarService {
 		if (wordspec != null && wordspec.length() > 2) {
 			System.out.println("Using wordspec: " + wordspec);
 			pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-					"tmitocar/texts/" + label1 + "/" + fileName,
+					"texts/" + label1 + "/" + fileName,
 					"-l", label1, "-o", "json", "-S", "-w", wordspec);
 
 		} else {
 			pb = new ProcessBuilder("bash", "tmitocar.sh", "-s", "-i",
-					"tmitocar/texts/" + label1 + "/" + fileName,
+					"texts/" + label1 + "/" + fileName,
 					"-l", label1, "-o", "json", "-S");
 		}
 
