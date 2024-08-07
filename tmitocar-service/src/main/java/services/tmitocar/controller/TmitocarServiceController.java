@@ -488,7 +488,7 @@ public class TmitocarServiceController {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err.toJSONString());
 		}
 		
-		File templatePath = new File("./tmitocar/templates/" + template);
+		File templatePath = new File("tmitocar/templates/" + template);
 		if (!templatePath.exists()){
 			JSONObject err = new JSONObject();
 			err.put("errorMessage", "Template: " + template + " not found.");
