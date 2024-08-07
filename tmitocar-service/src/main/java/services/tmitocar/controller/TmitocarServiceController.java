@@ -328,7 +328,7 @@ public class TmitocarServiceController {
 	 *
 	 * @param label1          the first label (user text)
 	 * @param file the InputStream containing the text to compare
-	 * @param type            the type of text (txt, pdf or docx)
+	 * @param type            the type of text (text, pdf or docx)
 	 * @param topic           the topic of the text (e.g. BiWi 5)
 	 * @param template        the template to use for the PDF report
 	 * @param wordSpec        the word specification for the PDF report
