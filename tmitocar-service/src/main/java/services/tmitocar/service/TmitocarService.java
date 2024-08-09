@@ -403,6 +403,7 @@ public class TmitocarService {
 				System.out.println(decodedBytes);
 				FileUtils.writeByteArrayToFile(f, decodedBytes);
 				textContent = readTxtFile("tmitocar/texts/" + name + "/" + fileName);
+				System.out.println("Text content: " + textContent);
 			} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
                 byte[] decodedBytes = d.decode(text);
 				System.out.println(decodedBytes);
