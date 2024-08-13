@@ -18,6 +18,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Base64.Decoder;
@@ -403,7 +404,6 @@ public class TmitocarService {
 				System.out.println(decodedBytes);
 				FileUtils.writeByteArrayToFile(f, decodedBytes);
 				textContent = readTxtFile("tmitocar/texts/" + name + "/" + fileName);
-				System.out.println("Text content: " + textContent);
 			} else if (type.toLowerCase().equals("application/pdf") || type.toLowerCase().equals("pdf")) {
                 byte[] decodedBytes = d.decode(text);
 				System.out.println(decodedBytes);
@@ -455,6 +455,17 @@ public class TmitocarService {
 
 	private void uploadToTmitocar(String label1, String fileName, String wordspec)
 			throws InterruptedException, IOException {
+
+		Path filePath = Paths.get("tmitocar/texts/" + label1 + "/" + fileName);
+
+		if (!Files.exists(filePath)) {
+			throw new IOException("File not found: " + filePath);
+		}
+		byte[] fileContent = Files.readAllBytes(filePath);
+		String fileTextContent = new String(fileContent);
+
+		System.out.println("File content: " + fileTextContent);
+
 		ProcessBuilder pb;
 		if (wordspec != null && wordspec.length() > 2) {
 			System.out.println("Using wordspec: " + wordspec);
