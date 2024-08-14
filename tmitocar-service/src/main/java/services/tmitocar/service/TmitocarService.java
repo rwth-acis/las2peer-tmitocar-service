@@ -461,10 +461,6 @@ public class TmitocarService {
 		if (!Files.exists(filePath)) {
 			throw new IOException("File not found: " + filePath);
 		}
-		byte[] fileContent = Files.readAllBytes(filePath);
-		String fileTextContent = new String(fileContent);
-
-		System.out.println("File content: " + fileTextContent);
 
 		ProcessBuilder pb;
 		if (wordspec != null && wordspec.length() > 2) {

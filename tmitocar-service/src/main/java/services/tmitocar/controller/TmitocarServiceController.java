@@ -16,6 +16,7 @@ import java.util.List;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import services.tmitocar.pojo.LrsCredentials;
 import services.tmitocar.pojo.TmitocarResponse;
 import services.tmitocar.pojo.TmitocarText;
@@ -462,7 +463,8 @@ public class TmitocarServiceController {
 	 *
 	 * @param label1          the first label (user text)
 	 * @param label2          the second label (expert or second user text)
-	 * @param file the InputStream containing the text to compare
+	 * @param textInputStream the InputStream containing the text to compare
+	 * @param textFileDetail  the file details of the text file
 	 * @param type            the type of text (text, pdf or docx)
 	 * @param template        the template to use for the PDF report
 	 * @param wordSpec        the word specification for the PDF report
@@ -476,9 +478,7 @@ public class TmitocarServiceController {
 		@ApiResponse(responseCode = "500", description = "Response failed.") 
 	})
 	@PostMapping(value = "/compareText" , consumes = MediaType.MULTIPART_FORM_DATA, produces = MediaType.APPLICATION_JSON)
-	public ResponseEntity<String> compareText(@RequestParam("label1") String label1, @RequestParam("label2") String label2,
-			@FormDataParam("file") MultipartFile file,
-			// @FormDataParam("file") FormDataContentDisposition textFileDetail, 
+	public ResponseEntity<String> compareText(@RequestParam("label1") String label1, @RequestParam("label2") String label2, @FormDataParam("file") InputStream textInputStream, @FormDataParam("file") FormDataContentDisposition textFileDetail,
 			@FormDataParam("type") String type, @FormDataParam("template") String template,
 			@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
 		if (service.isActive.getOrDefault(label1, false)) {
@@ -500,7 +500,6 @@ public class TmitocarServiceController {
 
 		String topic = service.getTaskNameByIds(courseId, Integer.parseInt(label2));
 
-		InputStream textInputStream = file.getInputStream();
 		String encodedByteString = service.convertInputStreamToBase64(textInputStream);
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(topic);
@@ -510,7 +509,7 @@ public class TmitocarServiceController {
 		tmitoBody.setText(encodedByteString);
 		tmitoBody.setUuid(email);
 		byte[] bytes = Base64.getDecoder().decode(encodedByteString);
-		String fname = file.getOriginalFilename();
+		String fname = textFileDetail.getFileName();
 		String fileEnding = "txt";
 		int dotIndex = fname.lastIndexOf('.');
 		if (dotIndex > 0 && dotIndex < fname.length() - 1) {
