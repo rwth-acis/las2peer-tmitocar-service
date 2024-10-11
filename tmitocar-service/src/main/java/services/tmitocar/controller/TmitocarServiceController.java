@@ -60,6 +60,8 @@ import javax.ws.rs.core.MediaType;
 
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
+import lombok.Locked;
+
 
 @Tag(name="TmitocarService", description= "A tmitocar wrapper service for analyzing/evaluating texts.")
 @RestController
@@ -475,10 +477,10 @@ public class TmitocarServiceController {
 		@ApiResponse(responseCode = "200" , description = "",content = {@Content(mediaType = "application/json")} ),
 		@ApiResponse(responseCode = "500", description = "Response failed.") 
 	})
-	@PostMapping(value = "/compareText" , consumes = MediaType.MULTIPART_FORM_DATA, produces = MediaType.APPLICATION_JSON)
-	public ResponseEntity<String> compareText(@RequestParam("label1") String label1, @RequestParam("label2") String label2, @FormDataParam("file") MultipartFile file,
-			@FormDataParam("type") String type, @FormDataParam("template") String template,
-			@FormDataParam("wordSpec") String wordSpec,@FormDataParam("email") String email,@FormDataParam("courseId") int courseId, @FormDataParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
+	@PostMapping(value = "/compareText", produces = MediaType.APPLICATION_JSON)
+	public ResponseEntity<String> compareText(@RequestParam("label1") String label1, @RequestParam("label2") String label2, @RequestParam("file") MultipartFile file,
+			@RequestParam("type") String type, @RequestParam("template") String template,
+			@RequestParam("wordSpec") String wordSpec,@RequestParam("email") String email,@RequestParam("courseId") int courseId, @RequestParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
 		if (service.isActive.getOrDefault(label1, false)) {
 			JSONObject err = new JSONObject();
 			err.put("errorMessage", "User: " + label1 + " currently busy.");
