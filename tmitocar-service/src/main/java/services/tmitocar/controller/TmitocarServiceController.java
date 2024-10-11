@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.util.MultiValueMap;
 
 import com.google.gson.Gson;
 
@@ -478,16 +479,24 @@ public class TmitocarServiceController {
 		@ApiResponse(responseCode = "500", description = "Response failed.") 
 	})
 	@PostMapping(value = "/compareText", produces = MediaType.APPLICATION_JSON)
-	public ResponseEntity<String> compareText(@RequestParam("label1") String label1, @RequestParam("label2") String label2, @RequestParam("file") MultipartFile file,
-			@RequestParam("type") String type, @RequestParam("template") String template,
-			@RequestParam("wordSpec") String wordSpec,@RequestParam("email") String email,@RequestParam("courseId") int courseId, @RequestParam("sbfmURL") String sbfmURL) throws ParseException, IOException {
+	public ResponseEntity<String> compareText(@RequestParam MultiValueMap<String,String> fileMp, @RequestParam("file") MultipartFile file) throws ParseException, IOException {
+		String label1 = fileMp.getFirst("label1");
+		String label2 = fileMp.getFirst("label2");
+		String type = fileMp.getFirst("type");
+		String template = fileMp.getFirst("template");
+		String wordSpec = fileMp.getFirst("wordSpec");
+		String email = fileMp.getFirst("email");
+		Integer courseId = Integer.parseInt(fileMp.getFirst("courseId"));
+		String sbfmURL = fileMp.getFirst("sbfmURL");
+
+
 		if (service.isActive.getOrDefault(label1, false)) {
 			JSONObject err = new JSONObject();
 			err.put("errorMessage", "User: " + label1 + " currently busy.");
 			err.put("error", true);
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err.toJSONString());
 		}
-		
+
 		File templatePath = new File("tmitocar/templates/" + template);
 		if (!templatePath.exists()){
 			JSONObject err = new JSONObject();
