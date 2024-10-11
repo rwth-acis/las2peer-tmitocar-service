@@ -60,6 +60,7 @@ import org.bson.types.ObjectId;
 import javax.ws.rs.core.MediaType;
 
 import org.glassfish.jersey.media.multipart.FormDataParam;
+import org.springframework.web.bind.annotation.RequestPart;
 
 import lombok.Locked;
 
@@ -479,7 +480,8 @@ public class TmitocarServiceController {
 		@ApiResponse(responseCode = "500", description = "Response failed.") 
 	})
 	@PostMapping(value = "/compareText", produces = MediaType.APPLICATION_JSON)
-	public ResponseEntity<String> compareText(@RequestParam MultiValueMap<String,String> fileMp, @RequestParam("file") MultipartFile file) throws ParseException, IOException {
+	public ResponseEntity<String> compareText(@RequestPart MultiValueMap<String,String> fileMp, @RequestPart("file") MultipartFile file) throws ParseException, IOException {
+		System.out.println(fileMp);
 		String label1 = fileMp.getFirst("label1");
 		String label2 = fileMp.getFirst("label2");
 		String type = fileMp.getFirst("type");
