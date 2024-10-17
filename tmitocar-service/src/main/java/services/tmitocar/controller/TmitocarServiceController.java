@@ -60,7 +60,9 @@ import org.bson.types.ObjectId;
 import javax.ws.rs.core.MediaType;
 
 import org.glassfish.jersey.media.multipart.FormDataParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
+
 
 import lombok.Locked;
 
@@ -98,7 +100,6 @@ public class TmitocarServiceController {
 					jsonObject.put("text", tasks.get(i).getText());
 					jsonObject.put("title", tasks.get(i).getTitle());
 					jsonArray.add(jsonObject);
-					System.out.println(jsonObject.toString());
 					jsonObject.put("intent", "nummer "  + tasks.get(i).getNr());
 					jsonObject.put("label", "Schreibaufgabe "+ tasks.get(i).getNr());
 					jsonObject.put("isFile", false);
@@ -479,19 +480,10 @@ public class TmitocarServiceController {
 		@ApiResponse(responseCode = "200" , description = "",content = {@Content(mediaType = "application/json")} ),
 		@ApiResponse(responseCode = "500", description = "Response failed.") 
 	})
-	@PostMapping(value = "/compareText", produces = MediaType.APPLICATION_JSON)
-	public ResponseEntity<String> compareText(@RequestPart MultiValueMap<String,String> fileMp, @RequestPart("file") MultipartFile file) throws ParseException, IOException {
-		System.out.println(fileMp);
-		String label1 = fileMp.getFirst("label1");
-		String label2 = fileMp.getFirst("label2");
-		String type = fileMp.getFirst("type");
-		String template = fileMp.getFirst("template");
-		String wordSpec = fileMp.getFirst("wordSpec");
-		String email = fileMp.getFirst("email");
-		Integer courseId = Integer.parseInt(fileMp.getFirst("courseId"));
-		String sbfmURL = fileMp.getFirst("sbfmURL");
-
-
+	@PostMapping(value = "/compareText", consumes = {MediaType.MULTIPART_FORM_DATA, MediaType.APPLICATION_JSON, MediaType.APPLICATION_OCTET_STREAM}, produces = MediaType.APPLICATION_JSON)
+	public ResponseEntity<String> compareText(@RequestPart("file") MultipartFile file, @RequestPart String label1, @RequestPart String label2, @RequestPart String type, @RequestPart String wordspec, @RequestPart String template, @RequestPart String courseId, @RequestPart String email, @RequestPart String sbfmURL
+			) throws ParseException, IOException {
+		System.out.println("Comparing text...");
 		if (service.isActive.getOrDefault(label1, false)) {
 			JSONObject err = new JSONObject();
 			err.put("errorMessage", "User: " + label1 + " currently busy.");
@@ -508,8 +500,7 @@ public class TmitocarServiceController {
 		}
 		
 		service.isActive.put(label1, true);
-
-		String topic = service.getTaskNameByIds(courseId, Integer.parseInt(label2));
+		String topic = service.getTaskNameByIds(Integer.parseInt(courseId), Integer.parseInt(label2));
 		InputStream textInputStream = file.getInputStream();
 
 		String encodedByteString = service.convertInputStreamToBase64(textInputStream);
@@ -550,9 +541,9 @@ public class TmitocarServiceController {
 		String uuid = service.getUuidByEmail(email);
 		if (uuid!=null){
 			// user has accepted
-			LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(courseId);
+			LrsCredentials lrsCredentials = service.getLrsCredentialsByCourse(Integer.parseInt(courseId));
 			if(lrsCredentials!=null){
-				JSONObject xapi = service.prepareXapiStatement(uuid, "uploaded_task", topic, courseId, Integer.parseInt(label2), uploaded.toString(),null,null);
+				JSONObject xapi = service.prepareXapiStatement(uuid, "uploaded_task", topic, Integer.parseInt(courseId), Integer.parseInt(label2), uploaded.toString(),null,null);
 				String toEncode = lrsCredentials.getClientKey()+":"+lrsCredentials.getClientSecret();
 				String encodedString = Base64.getEncoder().encodeToString(toEncode.getBytes());
 				service.sendXAPIStatement(xapi, encodedString);
