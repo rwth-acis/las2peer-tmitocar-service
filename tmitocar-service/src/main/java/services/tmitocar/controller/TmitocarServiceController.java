@@ -507,7 +507,7 @@ public class TmitocarServiceController {
 		TmitocarText tmitoBody = new TmitocarText();
 		tmitoBody.setTopic(topic);
 		tmitoBody.setType(type);
-		tmitoBody.setWordSpec(wordSpec);
+		tmitoBody.setWordSpec(wordspec);
 		tmitoBody.setTemplate(template);
 		tmitoBody.setText(encodedByteString);
 		tmitoBody.setUuid(email);
